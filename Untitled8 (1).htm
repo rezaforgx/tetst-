@@ -1,0 +1,3448 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سیستم پیشرفته عیب‌یابی رباتیک</title>
+<style>
+    :root {
+        --primary: #1a73e8;
+        --primary-dark: #1557b0;
+        --secondary: #34a853;
+        --danger: #ea4335;
+        --warning: #fbbc04;
+        --bg: #0f1117;
+        --bg2: #1a1d27;
+        --bg3: #22263a;
+        --card: #1e2235;
+        --border: #2e3350;
+        --text: #e8eaf6;
+        --text2: #9fa8da;
+        --text3: #5c6bc0;
+        --accent: #7c4dff;
+        --accent2: #00bcd4;
+        --glow: rgba(26,115,232,0.15);
+        --radius: 12px;
+        --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* SIDEBAR */
+    .sidebar {
+        position: fixed; right: 0; top: 0;
+        width: 260px; height: 100vh;
+        background: var(--bg2);
+        border-left: 1px solid var(--border);
+        display: flex; flex-direction: column;
+        z-index: 100; transition: transform 0.3s;
+    }
+    .sidebar-logo {
+        padding: 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 12px;
+    }
+    .logo-icon {
+        width: 42px; height: 42px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px;
+    }
+    .logo-text { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .logo-sub { font-size: 11px; color: var(--text2); }
+    .sidebar-nav { flex: 1; overflow-y: auto; padding: 12px 0; }
+    .nav-section { padding: 8px 16px 4px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+    .nav-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 20px; cursor: pointer;
+        color: var(--text2); font-size: 13px;
+        transition: all 0.2s; border-right: 3px solid transparent;
+    }
+    .nav-item:hover { background: var(--glow); color: var(--text); }
+    .nav-item.active { background: var(--glow); color: var(--primary); border-right-color: var(--primary); }
+    .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+    .nav-badge {
+        margin-right: auto; background: var(--primary);
+        color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px;
+    }
+    .sidebar-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border);
+        font-size: 11px; color: var(--text3);
+    }
+
+    /* MAIN */
+    .main { margin-right: 260px; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 28px;
+        display: flex; align-items: center; gap: 16px;
+        position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-title { font-size: 18px; font-weight: 700; flex: 1; }
+    .search-box {
+        display: flex; align-items: center; gap: 8px;
+        background: var(--bg3); border: 1px solid var(--border);
+        border-radius: 8px; padding: 8px 14px;
+        width: 300px; transition: border-color 0.2s;
+    }
+    .search-box:focus-within { border-color: var(--primary); }
+    .search-box input {
+        background: none; border: none; outline: none;
+        color: var(--text); font-size: 13px; width: 100%; font-family: inherit;
+    }
+    .search-box input::placeholder { color: var(--text3); }
+    .btn {
+        padding: 8px 18px; border-radius: 8px; border: none;
+        cursor: pointer; font-size: 13px; font-weight: 600;
+        transition: all 0.2s; font-family: inherit;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--secondary); color: #fff; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+    /* CONTENT */
+    .content { flex: 1; padding: 28px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* CARDS */
+    .card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+    }
+    .card-header {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 16px; padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    .card-title { font-size: 15px; font-weight: 700; }
+    .card-icon { font-size: 20px; }
+
+    /* GRID */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+
+    /* STAT CARDS */
+    .stat-card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 20px;
+        display: flex; align-items: center; gap: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+    .stat-icon {
+        width: 52px; height: 52px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; flex-shrink: 0;
+    }
+    .stat-info .value { font-size: 26px; font-weight: 800; }
+    .stat-info .label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+    /* ROBOT CARDS */
+    .robot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 20px; }
+    .robot-card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); overflow: hidden; cursor: pointer;
+        transition: all 0.3s;
+    }
+    .robot-card:hover {
+        border-color: var(--primary); transform: translateY(-3px);
+        box-shadow: 0 8px 32px rgba(26,115,232,0.2);
+    }
+    .robot-card-header {
+        padding: 20px;
+        background: linear-gradient(135deg, var(--bg3), var(--bg2));
+        display: flex; align-items: center; gap: 14px;
+    }
+    .robot-emoji { font-size: 40px; }
+    .robot-name { font-size: 15px; font-weight: 700; }
+    .robot-category { font-size: 11px; color: var(--text2); margin-top: 3px; }
+    .robot-card-body { padding: 16px 20px; }
+    .robot-desc { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+    .robot-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+        background: var(--bg3); border: 1px solid var(--border);
+        color: var(--text2); font-size: 10px; padding: 3px 8px; border-radius: 20px;
+    }
+    .tag.blue { border-color: var(--primary); color: var(--primary); background: rgba(26,115,232,0.1); }
+    .tag.green { border-color: var(--secondary); color: var(--secondary); background: rgba(52,168,83,0.1); }
+    .tag.purple { border-color: var(--accent); color: var(--accent); background: rgba(124,77,255,0.1); }
+    .tag.cyan { border-color: var(--accent2); color: var(--accent2); background: rgba(0,188,212,0.1); }
+    .robot-card-footer {
+        padding: 12px 20px; border-top: 1px solid var(--border);
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .difficulty { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text2); }
+    .diff-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+    .diff-dot.filled { background: var(--warning); }
+
+    /* ROBOT DETAIL */
+    .robot-detail { display: none; }
+    .robot-detail.active { display: block; }
+    .detail-hero {
+        background: linear-gradient(135deg, var(--bg2), var(--bg3));
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px; margin-bottom: 24px;
+        display: flex; align-items: center; gap: 24px;
+    }
+    .detail-emoji { font-size: 64px; }
+    .detail-info h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+    .detail-info p { color: var(--text2); font-size: 13px; line-height: 1.7; max-width: 600px; }
+    .detail-meta { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .meta-badge {
+        background: var(--bg3); border: 1px solid var(--border);
+        padding: 5px 12px; border-radius: 20px;
+        font-size: 11px; color: var(--text2);
+        display: flex; align-items: center; gap: 5px;
+    }
+    .tabs {
+        display: flex; gap: 4px; margin-bottom: 20px;
+        background: var(--bg2); padding: 4px;
+        border-radius: 10px; border: 1px solid var(--border);
+        width: fit-content;
+    }
+    .tab {
+        padding: 8px 18px; border-radius: 7px; cursor: pointer;
+        font-size: 13px; color: var(--text2); transition: all 0.2s; font-weight: 500;
+    }
+    .tab.active { background: var(--primary); color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* SPECS TABLE */
+    .specs-table { width: 100%; border-collapse: collapse; }
+    .specs-table th, .specs-table td {
+        padding: 10px 14px; text-align: right;
+        border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .specs-table th { color: var(--text2); font-weight: 600; background: var(--bg3); width: 35%; }
+    .specs-table tr:last-child th, .specs-table tr:last-child td { border-bottom: none; }
+
+    /* TROUBLESHOOT */
+    .ts-container { max-width: 800px; margin: 0 auto; }
+    .ts-step {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 24px; margin-bottom: 16px;
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .ts-question { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .ts-hint { font-size: 12px; color: var(--text2); margin-bottom: 20px; line-height: 1.6; }
+    .ts-options { display: flex; flex-direction: column; gap: 10px; }
+    .ts-option {
+        background: var(--bg3); border: 1px solid var(--border);
+        border-radius: 8px; padding: 14px 18px;
+        cursor: pointer; transition: all 0.2s;
+        display: flex; align-items: center; gap: 12px; font-size: 13px;
+    }
+    .ts-option:hover { border-color: var(--primary); background: rgba(26,115,232,0.1); color: var(--primary); }
+    .ts-option .opt-icon { font-size: 18px; }
+    .ts-option .opt-text { flex: 1; }
+    .ts-option .opt-arrow { color: var(--text3); }
+    .ts-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .bc-item {
+        font-size: 12px; color: var(--text2); cursor: pointer;
+        padding: 4px 10px; background: var(--bg3);
+        border-radius: 20px; border: 1px solid var(--border); transition: all 0.2s;
+    }
+    .bc-item:hover { color: var(--primary); border-color: var(--primary); }
+    .bc-sep { color: var(--text3); font-size: 12px; }
+    .ts-result {
+        background: var(--card); border: 2px solid var(--secondary);
+        border-radius: var(--radius); padding: 24px; animation: fadeIn 0.3s ease;
+    }
+    .ts-result.warning { border-color: var(--warning); }
+    .ts-result.danger { border-color: var(--danger); }
+    .result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .result-icon { font-size: 32px; }
+    .result-title { font-size: 18px; font-weight: 800; }
+    .result-cause { background: var(--bg3); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    .result-cause h4 { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+    .result-cause p { font-size: 13px; line-height: 1.7; }
+    .solution-steps { list-style: none; }
+    .solution-steps li {
+        display: flex; gap: 12px; padding: 10px 0;
+   border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6;
+    }
+    .solution-steps li:last-child { border-bottom: none; }
+    .step-num {
+        width: 24px; height: 24px; border-radius: 50%;
+        background: var(--primary); color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700; flex-shrink: 0;
+    }
+    .probability-bar { background: var(--bg3); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+    .prob-item { margin-bottom: 10px; }
+    .prob-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+    .prob-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+
+    /* COMPONENTS */
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 16px; }
+    .comp-card {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 18px; cursor: pointer; transition: all 0.2s;
+    }
+    .comp-card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+    .comp-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .comp-icon {
+        width: 44px; height: 44px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .comp-name { font-size: 14px; font-weight: 700; }
+    .comp-type { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .comp-desc { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+    .comp-specs { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* ALERTS */
+    .alert {
+        padding: 12px 16px; border-radius: 8px; font-size: 13px;
+        margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.6;
+    }
+    .alert-info { background: rgba(26,115,232,0.1); border: 1px solid rgba(26,115,232,0.3); color: #90caf9; }
+    .alert-warning { background: rgba(251,188,4,0.1); border: 1px solid rgba(251,188,4,0.3); color: #ffe082; }
+    .alert-danger { background: rgba(234,67,53,0.1); border: 1px solid rgba(234,67,53,0.3); color: #ef9a9a; }
+    .alert-success { background: rgba(52,168,83,0.1); border: 1px solid rgba(52,168,83,0.3); color: #a5d6a7; }
+
+    /* PROGRESS */
+    .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+    .progress-fill {
+        height: 100%; border-radius: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        transition: width 0.5s ease;
+    }
+
+    /* HISTORY */
+    .history-item {
+        background: var(--card); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+        display: flex; align-items: center; gap: 16px;
+        cursor: pointer; transition: all 0.2s;
+    }
+    .history-item:hover { border-color: var(--primary); }
+    .history-icon { font-size: 24px; }
+    .history-info { flex: 1; }
+    .history-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .history-meta { font-size: 11px; color: var(--text2); }
+    .history-status { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-solved { background: rgba(52,168,83,0.2); color: var(--secondary); }
+    .status-pending { background: rgba(251,188,4,0.2); color: var(--warning); }
+    .status-unsolved { background: rgba(234,67,53,0.2); color: var(--danger); }
+
+    /* MODAL */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+        z-index: 200; display: none;
+        align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+        background: var(--bg2); border: 1px solid var(--border);
+        border-radius: 16px; padding: 28px;
+        max-width: 600px; width: 90%; max-height: 80vh;
+        overflow-y: auto; animation: fadeIn 0.3s ease;
+    }
+    .modal-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 20px; padding-bottom: 14px;
+        border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close {
+        background: none; border: none; color: var(--text2);
+        font-size: 20px; cursor: pointer; padding: 4px; transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--danger); }
+
+    /* SECTION HEADER */
+    .section-header {
+        display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+    }
+    .section-title { font-size: 18px; font-weight: 800; }
+    .section-sub { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+    /* FILTER BAR */
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .filter-btn {
+        padding: 6px 14px; border-radius: 20px;
+        border: 1px solid var(--border); background: var(--bg3);
+        color: var(--text2); font-size: 12px; cursor: pointer;
+        transition: all 0.2s; font-family: inherit;
+    }
+    .filter-btn:hover, .filter-btn.active {
+        border-color: var(--primary); color: var(--primary);
+        background: rgba(26,115,232,0.1);
+    }
+
+    /* MISC */
+    .glow-blue { box-shadow: 0 0 20px rgba(26,115,232,0.3); }
+    .glow-green { box-shadow: 0 0 20px rgba(52,168,83,0.3); }
+    .glow-purple { box-shadow: 0 0 20px rgba(124,77,255,0.3); }
+
+    [data-tooltip] { position: relative; }
+    [data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute; bottom: 100%; right: 50%;
+        transform: translateX(50%); margin-bottom: 6px;
+        background: var(--bg3); border: 1px solid var(--border);
+        color: var(--text); font-size: 11px; padding: 5px 10px;
+        border-radius: 6px; white-space: nowrap; z-index: 999;
+    }
+
+    .formula-box {
+        background: var(--bg3); border: 1px solid var(--border);
+        border-radius: 8px; padding: 14px; margin: 10px 0;
+        font-family: 'Courier New', monospace; font-size: 13px;
+        color: var(--accent2); text-align: center;
+    }
+
+    .wiring-box {
+        background: var(--bg3); border: 1px solid var(--border);
+        border-radius: 8px; padding: 16px; margin: 10px 0;
+        font-family: 'Courier New', monospace; font-size: 12px;
+        color: var(--text2); line-height: 1.8;
+    }
+    .wire-pin { color: var(--warning); font-weight: 700; }
+    .wire-signal { color: var(--secondary); }
+    .wire-power { color: var(--danger); }
+    .wire-gnd { color: var(--text3); }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+        .sidebar { transform: translateX(100%); }
+        .sidebar.open { transform: translateX(0); }
+        .main { margin-right: 0; }
+        .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+        .search-box { width: 200px; }
+    }
+    @media (max-width: 600px) {
+        .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        .content { padding: 16px; }
+        .topbar { padding: 12px 16px; }
+        .search-box { display: none; }
+    }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">🤖</div>
+        <div>
+            <div class="logo-text">RoboFault Pro</div>
+            <div class="logo-sub">سیستم عیب‌یابی پیشرفته</div>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">منوی اصلی</div>
+        <div class="nav-item active" onclick="showPage('dashboard')">
+            <span class="icon">📊</span> داشبورد
+        </div>
+        <div class="nav-item" onclick="showPage('robots')">
+            <span class="icon">🤖</span> ربات‌ها
+            <span class="nav-badge">8</span>
+        </div>
+        <div class="nav-item" onclick="showPage('troubleshoot')">
+            <span class="icon">🔧</span> عیب‌یابی
+        </div>
+        <div class="nav-section">دانش فنی</div>
+        <div class="nav-item" onclick="showPage('components')">
+            <span class="icon">⚙️</span> قطعات
+        </div>
+        <div class="nav-item" onclick="showPage('encyclopedia')">
+            <span class="icon">📚</span> دایره‌المعارف
+        </div>
+        <div class="nav-item" onclick="showPage('common-issues')">
+            <span class="icon">⚠️</span> مشکلات رایج
+        </div>
+        <div class="nav-section">ابزارها</div>
+        <div class="nav-item" onclick="showPage('history')">
+            <span class="icon">📋</span> تاریخچه
+        </div>
+        <div class="nav-item" onclick="showPage('maintenance')">
+            <span class="icon">🛡️</span> نگهداری
+        </div>
+        <div class="nav-item" onclick="showPage('calculator')">
+            <span class="icon">🧮</span> ماشین‌حساب
+        </div>
+        <div class="nav-section">سیستم</div>
+        <div class="nav-item" onclick="showPage('settings')">
+            <span class="icon">⚙️</span> تنظیمات
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <div style="font-weight:600;color:var(--text2);margin-bottom:4px;">🚀 ارائه شده توسط انجمن میان‌رشته‌ای رباتیک دانشگاه بیرجند</div>
+        <div>🛠️ ساخته شده توسط: رضا محمدی ملاسرائی</div>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+    <div class="topbar">
+        <button class="btn btn-outline btn-sm" onclick="toggleSidebar()" id="menuBtn" style="display:none;font-size:16px;">☰</button>
+        <div class="topbar-title" id="topbarTitle">داشبورد</div>
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" placeholder="جستجو در سیستم..." id="globalSearch" oninput="handleSearch(this.value)">
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showPage('troubleshoot')">⚡ شروع عیب‌یابی</button>
+    </div>
+
+    <div class="content">
+
+        <!-- ===== DASHBOARD ===== -->
+        <div class="page active" id="page-dashboard">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">خوش آمدید به RoboFault Pro</div>
+                    <div class="section-sub">سیستم پیشرفته عیب‌یابی رباتیک</div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="showPage('troubleshoot')">⚡ عیب‌یابی جدید</button>
+            </div>
+
+            <div class="grid-4" style="margin-bottom:24px;">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(26,115,232,0.15);">🤖</div>
+                    <div class="stat-info">
+                        <div class="value" style="color:var(--primary);">12</div>
+                        <div class="label">دسته‌بندی ربات</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(52,168,83,0.15);">⚙️</div>
+                    <div class="stat-info">
+                        <div class="value" style="color:var(--secondary);">48</div>
+                        <div class="label">قطعه در پایگاه داده</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(251,188,4,0.15);">⚠️</div>
+                    <div class="stat-info">
+                        <div class="value" style="color:var(--warning);">156</div>
+                        <div class="label">سناریوی خرابی</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(124,77,255,0.15);">🔧</div>
+                    <div class="stat-info">
+                        <div class="value" style="color:var(--accent);">324</div>
+                        <div class="label">راه‌حل تعریف‌شده</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:24px;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">⚡</span>
+                        <div class="card-title">شروع سریع عیب‌یابی</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <div class="ts-option" onclick="startTroubleshoot('symptom')">
+                            <span class="opt-icon">🔍</span>
+                            <div class="opt-text">
+                                <div style="font-weight:600;">از روی علامت خرابی</div>
+                                <div style="font-size:11px;color:var(--text2);">مثلاً: موتور نمی‌چرخد، ربات منحرف می‌شود</div>
+                            </div>
+                            <span class="opt-arrow">←</span>
+                        </div>
+                        <div class="ts-option" onclick="startTroubleshoot('robot')">
+                            <span class="opt-icon">🤖</span>
+                            <div class="opt-text">
+                                <div style="font-weight:600;">از روی نوع ربات</div>
+                                <div style="font-size:11px;color:var(--text2);">انتخاب ربات → زیرسیستم → مشکل</div>
+                            </div>
+                            <span class="opt-arrow">←</span>
+                        </div>
+                        <div class="ts-option" onclick="startTroubleshoot('component')">
+                            <span class="opt-icon">⚙️</span>
+                            <div class="opt-text">
+                                <div style="font-weight:600;">از روی قطعه مشکوک</div>
+                                <div style="font-size:11px;color:var(--text2);">انتخاب قطعه → درخت تصمیم</div>
+                            </div>
+                            <span class="opt-arrow">←</span>
+                        </div>
+                    </div>
+                </div>
+<div class="card">
+    <div class="card-header">
+        <span class="card-icon">📋</span>
+        <div class="card-title">آخرین جلسات عیب‌یابی</div>
+    </div>
+    <div id="recent-sessions-list">
+        <p style="color:var(--text-muted);text-align:center;padding:1rem;">
+            هنوز جلسه‌ای ثبت نشده
+        </p>
+    </div>
+</div>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+                    <div onclick="showRobotDetail('line')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">🏎️</div>
+                        <div style="font-size:12px;font-weight:600;">خط‌دنبال‌کن</div>
+                        <div style="font-size:10px;color:var(--text2);">Line Follower</div>
+                    </div>
+                    <div onclick="showRobotDetail('linepro')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">🏁</div>
+                        <div style="font-size:12px;font-weight:600;">خط‌دنبال‌کن حرفه‌ای</div>
+                        <div style="font-size:10px;color:var(--text2);">Pro PCB Line Follower</div>
+                    </div>
+                    <div onclick="showRobotDetail('drone')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">🚁</div>
+                        <div style="font-size:12px;font-weight:600;">کوادکوپتر</div>
+                        <div style="font-size:10px;color:var(--text2);">UAV / Drone</div>
+                    </div>
+                    <div onclick="showRobotDetail('arm')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">🦾</div>
+                        <div style="font-size:12px;font-weight:600;">بازوی رباتیک</div>
+                        <div style="font-size:10px;color:var(--text2);">Robotic Arm</div>
+                    </div>
+                    <div onclick="showRobotDetail('combat')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">⚔️</div>
+                        <div style="font-size:12px;font-weight:600;">ربات جنگنده</div>
+                        <div style="font-size:10px;color:var(--text2);">Combat Robot</div>
+                    </div>
+                    <div onclick="showRobotDetail('balance')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">⚖️</div>
+                        <div style="font-size:12px;font-weight:600;">تعادل‌دهنده</div>
+                        <div style="font-size:10px;color:var(--text2);">Balancing Robot</div>
+                    </div>
+                    <div onclick="showRobotDetail('humanoid')" style="cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                        <div style="font-size:28px;margin-bottom:8px;">🧍</div>
+                        <div style="font-size:12px;font-weight:600;">هیومانوید</div>
+                        <div style="font-size:10px;color:var(--text2);">Humanoid</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <span>💡</span>
+                <div>نکته حرفه‌ای: قبل از هر عیب‌یابی، سیستم برق (ولتاژ باتری، وضعیت BMS) را اول بررسی کنید.</div>
+            </div>
+        </div>
+
+        <!-- ===== ROBOTS PAGE ===== -->
+        <div class="page" id="page-robots">
+            <div id="robots-list">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">ربات‌ها</div>
+                        <div class="section-sub">انتخاب ربات برای مشاهده جزئیات و عیب‌یابی</div>
+                    </div>
+                </div>
+                <div class="filter-bar">
+                    <button class="filter-btn active" onclick="filterRobots('all',this)">همه</button>
+                    <button class="filter-btn" onclick="filterRobots('ground',this)">زمینی</button>
+                    <button class="filter-btn" onclick="filterRobots('aerial',this)">هوایی</button>
+                    <button class="filter-btn" onclick="filterRobots('arm',this)">بازو</button>
+                    <button class="filter-btn" onclick="filterRobots('competition',this)">مسابقاتی</button>
+                </div>
+                <div class="robot-grid" id="robotGrid">
+                    <div class="robot-card" onclick="showRobotDetail('line')" data-cat="ground competition">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">🏎️</div>
+                            <div>
+                                <div class="robot-name">ربات خط‌دنبال‌کن</div>
+                                <div class="robot-category">Line Follower Robot</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">ربات مسابقاتی که با استفاده از سنسورهای IR مسیر مشخصی را دنبال می‌کند.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">IR Sensor</span>
+                                <span class="tag green">DC Motor</span>
+                                <span class="tag purple">PID Control</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+<div class="robot-card" onclick="showRobotDetail('linepro')" data-cat="ground competition">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">🏁</div>
+                            <div>
+                                <div class="robot-name">خط‌دنبال‌کن حرفه‌ای (PCB)</div>
+                                <div class="robot-category">Pro PCB Line Follower</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">نسخه پیشرفته مسیریاب با برد چاپی اختصاصی، انکودر و میکروکنترلر STM32.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">Custom PCB</span>
+                                <span class="tag green">STM32</span>
+                                <span class="tag purple">Encoder</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+                    <div class="robot-card" onclick="showRobotDetail('drone')" data-cat="aerial">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">🚁</div>
+                            <div>
+                                <div class="robot-name">کوادکوپتر</div>
+                                <div class="robot-category">Quadcopter / UAV</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">پرنده چهارموتوره با سیستم کنترل پرواز پیچیده و حساس به تنظیمات PID.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">Brushless Motor</span>
+                                <span class="tag green">ESC</span>
+                                <span class="tag purple">Flight Controller</span>
+                                <span class="tag cyan">IMU</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+
+                    <div class="robot-card" onclick="showRobotDetail('arm')" data-cat="arm">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">🦾</div>
+                            <div>
+                                <div class="robot-name">بازوی رباتیک</div>
+                                <div class="robot-category">Robotic Arm</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">بازوی مکانیکی چند درجه آزادی با سروو موتور و کنترل دقیق موقعیت.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">Servo Motor</span>
+                                <span class="tag green">Inverse Kinematics</span>
+                                <span class="tag purple">PWM</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+
+                    <div class="robot-card" onclick="showRobotDetail('combat')" data-cat="ground competition">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">⚔️</div>
+                            <div>
+                                <div class="robot-name">ربات جنگنده</div>
+                                <div class="robot-category">Combat Robot</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">ربات مسابقاتی طراحی‌شده برای رزم با موتورهای قدرتمند و شاسی مقاوم.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">DC Motor</span>
+                                <span class="tag green">H-Bridge</span>
+                                <span class="tag purple">RC Control</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+
+                    <div class="robot-card" onclick="showRobotDetail('balance')" data-cat="ground">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">⚖️</div>
+                            <div>
+                                <div class="robot-name">ربات تعادل‌دهنده</div>
+                                <div class="robot-category">Self-Balancing Robot</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">ربات دو چرخ با سیستم تعادل پویا بر اساس IMU و کنترل PID.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">MPU6050</span>
+                                <span class="tag green">PID</span>
+                                <span class="tag purple">DC Motor</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+
+                    <div class="robot-card" onclick="showRobotDetail('humanoid')" data-cat="arm">
+                        <div class="robot-card-header">
+                            <div class="robot-emoji">🧍</div>
+                            <div>
+                                <div class="robot-name">ربات هیومانوید</div>
+                                <div class="robot-category">Humanoid Robot</div>
+                            </div>
+                        </div>
+                        <div class="robot-card-body">
+                            <div class="robot-desc">ربات انسان‌نما با مفاصل متعدد سروو و سیستم راه رفتن پیچیده.</div>
+                            <div class="robot-tags">
+                                <span class="tag blue">Servo</span>
+                                <span class="tag green">IMU</span>
+                                <span class="tag purple">Gait Control</span>
+                            </div>
+                        </div>
+                        <div class="robot-card-footer">
+                            <div class="difficulty">
+                                <span>سختی:</span>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                                <div class="diff-dot filled"></div>
+                            </div>
+                            <button class="btn btn-primary btn-sm">عیب‌یابی</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROBOT DETAIL VIEWS -->
+            <div id="robot-detail-view" style="display:none;">
+                <div style="margin-bottom:20px;">
+                    <button class="btn btn-outline btn-sm" onclick="backToRobots()">→ برگشت به لیست ربات‌ها</button>
+                </div>
+                <div id="robot-detail-content"></div>
+            </div>
+        </div>
+
+        <!-- ===== TROUBLESHOOT PAGE ===== -->
+        <div class="page" id="page-troubleshoot">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">🔧 سیستم عیب‌یابی هوشمند</div>
+                    <div class="section-sub">درخت تصمیم گام‌به‌گام برای یافتن ریشه مشکل</div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="resetTroubleshoot()">🔄 شروع مجدد</button>
+            </div>
+            <div class="ts-container">
+                <div class="ts-breadcrumb" id="tsBreadcrumb">
+                    <span class="bc-item">🏠 شروع</span>
+                </div>
+                <div id="tsContent"></div>
+            </div>
+        </div>
+
+        <!-- ===== COMPONENTS PAGE ===== -->
+        <div class="page" id="page-components">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">⚙️ پایگاه داده قطعات</div>
+                    <div class="section-sub">اطلاعات فنی کامل تمام قطعات رباتیک</div>
+                </div>
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filterComps('all',this)">همه</button>
+                <button class="filter-btn" onclick="filterComps('motor',this)">موتور</button>
+                <button class="filter-btn" onclick="filterComps('sensor',this)">سنسور</button>
+                <button class="filter-btn" onclick="filterComps('controller',this)">کنترلر</button>
+                <button class="filter-btn" onclick="filterComps('power',this)">برق</button>
+                <button class="filter-btn" onclick="filterComps('driver',this)">درایور</button>
+            </div>
+            <div class="comp-grid" id="compGrid">
+
+                <div class="comp-card" onclick="showCompDetail('dcmotor')" data-cat="motor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(26,115,232,0.15);">⚡</div>
+                        <div>
+                            <div class="comp-name">موتور DC</div>
+                            <div class="comp-type">DC Motor</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">موتور جریان مستقیم با جاروبک، پرکاربردترین موتور در رباتیک مسابقاتی.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">6-24V</span>
+                        <span class="tag green">جاروبک‌دار</span>
+                        <span class="tag">H-Bridge</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('servo')" data-cat="motor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(52,168,83,0.15);">🔄</div>
+                        <div>
+                            <div class="comp-name">سروو موتور</div>
+                            <div class="comp-type">Servo Motor</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">موتور با کنترل موقعیت دقیق از طریق سیگنال PWM، مناسب برای بازوی رباتیک.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">PWM 50Hz</span>
+                        <span class="tag green">0-180°</span>
+                        <span class="tag">5V</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('brushless')" data-cat="motor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(124,77,255,0.15);">🌀</div>
+                        <div>
+                            <div class="comp-name">موتور براشلس</div>
+                            <div class="comp-type">Brushless Motor</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">موتور بدون جاروبک با راندمان بالا، استفاده در درون و رباتیک صنعتی.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">BLDC</span>
+                        <span class="tag green">ESC</span>
+                        <span class="tag purple">KV Rating</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('ir')" data-cat="sensor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(251,188,4,0.15);">👁️</div>
+                        <div>
+                            <div class="comp-name">سنسور IR</div>
+                            <div class="comp-type">Infrared Sensor</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">سنسور مادون قرمز برای تشخیص خط، موانع و اندازه‌گیری فاصله کوتاه.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">Digital/Analog</span>
+                        <span class="tag green">3.3-5V</span>
+                        <span class="tag">2-30cm</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('ultrasonic')" data-cat="sensor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(0,188,212,0.15);">📡</div>
+                        <div>
+                            <div class="comp-name">سنسور اولتراسونیک</div>
+                            <div class="comp-type">HC-SR04</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">اندازه‌گیری فاصله با امواج صوتی، برد ۲ تا ۴۰۰ سانتیمتر.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">5V</span>
+                        <span class="tag green">2-400cm</span>
+                        <span class="tag">Trig/Echo</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('mpu')" data-cat="sensor">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(234,67,53,0.15);">📐</div>
+                        <div>
+                            <div class="comp-name">MPU-6050</div>
+                            <div class="comp-type">IMU / Gyroscope</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">واحد اندازه‌گیری اینرسی با ژیروسکوپ و شتاب‌سنج ۶ محوره.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">I2C</span>
+                        <span class="tag green">3.3V</span>
+                        <span class="tag purple">6-DOF</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('arduino')" data-cat="controller">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(0,188,212,0.15);">🖥️</div>
+                        <div>
+                            <div class="comp-name">آردوینو</div>
+                            <div class="comp-type">Arduino UNO/MEGA</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">میکروکنترلر محبوب برای پروتوتایپ رباتیک با اکوسیستم گسترده.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">ATmega328</span>
+                        <span class="tag green">5V</span>
+                        <span class="tag">USB</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('lipo')" data-cat="power">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(234,67,53,0.15);">🔋</div>
+                        <div>
+                            <div class="comp-name">باتری LiPo</div>
+                            <div class="comp-type">Lithium Polymer</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">باتری سبک با دانسیته انرژی بالا، استاندارد رباتیک و درون مسابقاتی.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">3.7V/cell</span>
+                        <span class="tag green">1S-6S</span>
+                        <span class="tag purple">C Rating</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('hbridge')" data-cat="driver">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(26,115,232,0.15);">🔌</div>
+                        <div>
+                            <div class="comp-name">H-Bridge / L298N</div>
+                            <div class="comp-type">Motor Driver</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">درایور موتور دو کانال برای کنترل جهت و سرعت موتورهای DC.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">5-35V</span>
+                        <span class="tag green">2A/channel</span>
+                        <span class="tag">PWM</span>
+                    </div>
+                </div>
+
+                <div class="comp-card" onclick="showCompDetail('esc')" data-cat="driver">
+                    <div class="comp-card-top">
+                        <div class="comp-icon" style="background:rgba(124,77,255,0.15);">⚡</div>
+                        <div>
+                            <div class="comp-name">ESC</div>
+                            <div class="comp-type">Electronic Speed Controller</div>
+                        </div>
+                    </div>
+                    <div class="comp-desc">کنترل‌کننده سرعت الکترونیکی برای موتورهای براشلس در درون و رباتیک.</div>
+                    <div class="comp-specs">
+                        <span class="tag blue">BEC</span>
+                                                <span class="tag green">PWM/DSHOT</span>
+                        <span class="tag purple">Calibration</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ===== ENCYCLOPEDIA PAGE ===== -->
+        <div class="page" id="page-encyclopedia">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">📚 دایره‌المعارف رباتیک</div>
+                    <div class="section-sub">مفاهیم، فرمول‌ها و اصول فنی</div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔄</span><div class="card-title">کنترل PID</div></div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:12px;">کنترل‌کننده PID ترکیبی از سه جزء تناسبی، انتگرالی و مشتقی است که برای کنترل دقیق سیستم‌های دینامیک استفاده می‌شود.</p>
+                    <div class="formula-box">u(t) = Kp·e(t) + Ki·∫e(t)dt + Kd·de(t)/dt</div>
+                    <div style="margin-top:12px;">
+                        <div class="alert alert-info"><span>📌</span><div><strong>Kp</strong> (تناسبی): واکنش سریع به خطا — اگر خیلی زیاد باشد → نوسان</div></div>
+                        <div class="alert alert-warning"><span>📌</span><div><strong>Ki</strong> (انتگرالی): حذف خطای ماندگار — اگر زیاد باشد → overshooting</div></div>
+                        <div class="alert alert-success"><span>📌</span><div><strong>Kd</strong> (مشتقی): کاهش نوسان — حساس به نویز</div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">⚡</span><div class="card-title">قانون اهم و توان</div></div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:12px;">پایه‌ای‌ترین روابط الکتریکی که در طراحی مدار قدرت رباتیک ضروری است.</p>
+                    <div class="formula-box">V = I × R | P = V × I | P = I²×R</div>
+                    <table class="specs-table" style="margin-top:12px;">
+                        <tr><th>ولتاژ (V)</th><td>ولت — اختلاف پتانسیل</td></tr>
+                        <tr><th>جریان (I)</th><td>آمپر — شدت جریان</td></tr>
+                        <tr><th>مقاومت (R)</th><td>اهم — مقاومت مدار</td></tr>
+                        <tr><th>توان (P)</th><td>وات — انرژی مصرفی</td></tr>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🌀</span><div class="card-title">موتور DC — گشتاور و RPM</div></div>
+                    <div class="formula-box">RPM = (V × Kv) | T = (I - I₀) × Kt</div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-top:12px;">در موتورهای براشلس، Kv نشان‌دهنده دور در دقیقه به ازای هر ولت است. افزایش بار → کاهش RPM → افزایش جریان.</p>
+                    <div class="alert alert-warning" style="margin-top:12px;"><span>⚠️</span><div>اگر جریان موتور از حد مجاز بیشتر شود → گرمای بیش از حد → آسیب به سیم‌پیچ</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📡</span><div class="card-title">PWM — مدولاسیون پهنای پالس</div></div>
+                    <div class="formula-box">Duty Cycle = (T_on / T_total) × 100%</div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-top:12px;">PWM با تغییر نسبت زمان روشن به خاموش، توان مؤثر را کنترل می‌کند. سروو: 50Hz، 1-2ms پالس.</p>
+                    <table class="specs-table" style="margin-top:12px;">
+                        <tr><th>سروو — توقف</th><td>1500 µs (Duty ~7.5%)</td></tr>
+                        <tr><th>سروو — حداکثر</th><td>2000 µs (Duty ~10%)</td></tr>
+                        <tr><th>ESC — Idle</th><td>1000 µs</td></tr>
+                        <tr><th>ESC — Full</th><td>2000 µs</td></tr>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📐</span><div class="card-title">IMU و فیلتر Complementary</div></div>
+                    <div class="formula-box">angle = α×(angle + gyro×dt) + (1-α)×accel_angle</div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-top:12px;">ترکیب ژیروسکوپ (سریع ولی drift) با شتاب‌سنج (کند ولی دقیق در بلندمدت). معمولاً α = 0.98 مقدار مناسب است.</p>
+                    <div class="alert alert-info" style="margin-top:12px;"><span>💡</span><div>فیلتر کالمن دقیق‌تر است ولی پیچیده‌تر — برای مبتدیان Complementary کافی است</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔋</span><div class="card-title">باتری LiPo — محاسبه ظرفیت</div></div>
+                    <div class="formula-box">Runtime = (Capacity_mAh / Current_mA) × 60 min</div>
+                    <p style="font-size:13px;color:var(--text2);line-height:1.8;margin-top:12px;">C Rating نشان‌دهنده حداکثر جریان دهی ایمن است.</p>
+                    <div class="formula-box">Max Current = C_rating × Capacity_Ah</div>
+                    <div class="alert alert-danger" style="margin-top:12px;"><span>🔴</span><div>ولتاژ LiPo هرگز زیر ۳.۵ ولت per cell نیاید — آسیب دائمی!</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== COMMON ISSUES PAGE ===== -->
+        <div class="page" id="page-common-issues">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">⚠️ مشکلات رایج</div>
+                    <div class="section-sub">شایع‌ترین خرابی‌ها و راه‌حل سریع</div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔴</span><div class="card-title">موتور DC نمی‌چرخد</div></div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="alert alert-danger"><span>❌</span><div>برق به موتور نمی‌رسد — اتصالات و فیوز را بررسی کنید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>درایور H-Bridge خراب یا داغ شده — دمای IC را بسنجید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>سیگنال PWM اشتباه از میکروکنترلر — با اسیلوسکوپ بررسی کنید</div></div>
+                        </div>
+                        <div>
+                            <div class="alert alert-info"><span>💡</span><div>موتور را مستقیم به باتری وصل کنید — اگر چرخید مشکل از درایور است</div></div>
+                            <div class="alert alert-success"><span>✅</span><div>ولتاژ Enable پین L298N باید HIGH باشد</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📡</span><div class="card-title">سنسور IR خط را تشخیص نمی‌دهد</div></div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>ارتفاع سنسور از زمین — باید ۱-۳ سانتیمتر باشد</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>نور محیط بیش از حد روشن — IR در نور مستقیم خورشید کار نمی‌کند</div></div>
+                        </div>
+                        <div>
+                            <div class="alert alert-info"><span>💡</span><div>پتانسیومتر تنظیم حساسیت روی ماژول را تنظیم کنید</div></div>
+                            <div class="alert alert-success"><span>✅</span><div>با دوربین موبایل LED مادون قرمز را ببینید تا مطمئن شوید روشن است</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🚁</span><div class="card-title">کوادکوپتر نوسان دارد / پایدار نیست</div></div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="alert alert-danger"><span>❌</span><div>Kp خیلی زیاد است — مقدار را کاهش دهید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>پروانه‌ها نامتعادل هستند — تست بالانس انجام دهید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>ESCها کالیبره نشده‌اند — مجدداً کالیبره کنید</div></div>
+                        </div>
+                        <div>
+                            <div class="alert alert-info"><span>💡</span><div>جهت چرخش موتورها را بررسی کنید: CW/CCW باید متناوب باشد</div></div>
+                            <div class="alert alert-success"><span>✅</span><div>ابتدا Rate mode را تنظیم کنید سپس Angle mode</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">⚖️</span><div class="card-title">ربات تعادل‌دهنده می‌افتد</div></div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="alert alert-danger"><span>❌</span><div>زاویه setpoint اشتباه است — نقطه تعادل واقعی را پیدا کنید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>تأخیر در حلقه کنترل — فرکانس loop باید حداقل ۱۰۰Hz باشد</div></div>
+                        </div>
+                        <div>
+                            <div class="alert alert-info"><span>💡</span><div>ابتدا فقط با Kp شروع کنید، سپس Kd اضافه کنید</div></div>
+                            <div class="alert alert-success"><span>✅</span><div>مرکز ثقل ربات باید بالای محور چرخ‌ها باشد</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔋</span><div class="card-title">باتری سریع تخلیه می‌شود</div></div>
+                    <div class="grid-2">
+                        <div>
+                            <div class="alert alert-danger"><span>❌</span><div>اتصال کوتاه در مدار — جریان کل را بسنجید</div></div>
+                            <div class="alert alert-warning"><span>⚠️</span><div>موتورها استال می‌کنند — بار مکانیکی زیاد است</div></div>
+                        </div>
+                        <div>
+                            <div class="alert alert-info"><span>💡</span><div>C Rating باتری کافی نیست — باتری با C بالاتر استفاده کنید</div></div>
+                            <div class="alert alert-success"><span>✅</span><div>مصرف کل = جمع جریان همه زیرسیستم‌ها را محاسبه کنید</div></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ===== HISTORY PAGE ===== -->
+        <div class="page" id="page-history">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">📋 تاریخچه عیب‌یابی</div>
+                    <div class="section-sub">جلسات قبلی عیب‌یابی</div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="clearHistory()">🗑️ پاک کردن</button>
+            </div>
+            <div id="historyList">
+                <div class="history-item">
+                    <span class="history-icon">🚁</span>
+                    <div class="history-info">
+                        <div class="history-title">کوادکوپتر — نوسان شدید در پرواز hover</div>
+                        <div class="history-meta">۱۴۰۳/۰۹/۱۵ · مشکل: تنظیم Kp بیش از حد · راه‌حل: کاهش Kp از 1.8 به 0.9</div>
+                    </div>
+                    <span class="history-status status-solved">حل شد</span>
+                </div>
+                <div class="history-item">
+                    <span class="history-icon">🏎️</span>
+                    <div class="history-info">
+                        <div class="history-title">خط‌دنبال‌کن — انحراف به چپ</div>
+                        <div class="history-meta">۱۴۰۳/۰۹/۱۳ · مشکل: سنسور چپ کثیف · راه‌حل: تمیزکاری و کالیبراسیون</div>
+                    </div>
+                    <span class="history-status status-solved">حل شد</span>
+                </div>
+                <div class="history-item">
+                    <span class="history-icon">⚔️</span>
+                    <div class="history-info">
+                        <div class="history-title">ربات جنگنده — موتور راست کار نمی‌کند</div>
+                        <div class="history-meta">۱۴۰۳/۰۹/۱۰ · مشکل: L298N سوخته · راه‌حل: تعویض درایور</div>
+                    </div>
+                    <span class="history-status status-solved">حل شد</span>
+                </div>
+                <div class="history-item">
+                    <span class="history-icon">🦾</span>
+                    <div class="history-info">
+                        <div class="history-title">بازوی رباتیک — لرزش در مفصل ۳</div>
+                        <div class="history-meta">۱۴۰۳/۰۹/۰۸ · در حال بررسی</div>
+                    </div>
+                    <span class="history-status status-pending">در حال بررسی</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MAINTENANCE PAGE ===== -->
+        <div class="page" id="page-maintenance">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">🛡️ برنامه نگهداری پیشگیرانه</div>
+                    <div class="section-sub">چک‌لیست‌های دوره‌ای برای جلوگیری از خرابی</div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📅</span><div class="card-title">قبل از هر مسابقه</div></div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> بررسی ولتاژ باتری (حداقل 3.7V per cell)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> بررسی اتصالات و کانکتورها
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> تست حرکت موتورها در هر دو جهت
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> کالیبراسیون سنسورها
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> بررسی محکم بودن پیچ و مهره‌ها
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> تست ارتباط رادیویی (بردRF)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--primary);"> بررسی سیم‌کشی از نظر سایش
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔧</span><div class="card-title">هفتگی</div></div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> تمیز کردن سنسورهای IR
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> بررسی وضعیت باتری LiPo (باد نکرده باشد)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> روغن‌کاری یاتاقان‌های موتور
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> بررسی دمای ESC بعد از کار
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> آپدیت firmware فلایت کنترلر
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                            <input type="checkbox" style="width:16px;height:16px;accent-color:var(--secondary);"> بررسی پروانه‌ها از نظر ترک و شکستگی
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📊</span><div class="card-title">نکات نگهداری باتری LiPo</div></div>
+                    <div class="alert alert-danger"><span>🔴</span><div>هرگز LiPo را زیر 3.5V per cell تخلیه نکنید</div></div>
+                    <div class="alert alert-warning"><span>⚠️</span><div>برای نگهداری طولانی مدت ولتاژ را روی 3.8V per cell نگه دارید</div></div>
+                    <div class="alert alert-info"><span>💡</span><div>شارژ با حداکثر 1C برای افزایش طول عمر باتری</div></div>
+                    <div class="alert alert-success"><span>✅</span><div>در دمای ۲۰-۲۵ درجه سانتیگراد نگهداری کنید</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🌡️</span><div class="card-title">مدیریت حرارت</div></div>
+                    <table class="specs-table">
+                        <tr><th>موتور DC</th><td>حداکثر ۷۰°C — بالاتر → آسیب سیم‌پیچ</td></tr>
+                        <tr><th>ESC</th><td>حداکثر ۸۵°C — نیاز به هیت‌سینک</td></tr>
+                        <tr><th>L298N</th><td>حداکثر ۱۳۰°C — ولی بالای ۸۰°C shutdown</td></tr>
+                        <tr><th>LiPo</th><td>شارژ: ۴۵°C max | دشارژ: ۶۰°C max</td></tr>
+                        <tr><th>آردوینو</th><td>حداکثر ۸۵°C محیط عملیاتی</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CALCULATOR PAGE ===== -->
+        <div class="page" id="page-calculator">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">🧮 ماشین‌حساب رباتیک</div>
+                    <div class="section-sub">محاسبات فنی سریع</div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🔋</span><div class="card-title">محاسبه زمان کارکرد باتری</div></div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">ظرفیت باتری (mAh)</label>
+                            <input type="number" id="calc-capacity" placeholder="مثال: 2200" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcBattery()">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">جریان مصرفی کل (mA)</label>
+                            <input type="number" id="calc-current" placeholder="مثال: 800" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcBattery()">
+                        </div>
+                        <div id="calc-battery-result" style="display:none;" class="alert alert-success">
+                            <span>⏱️</span><div id="calc-battery-text"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">⚡</span><div class="card-title">محاسبه توان و جریان</div></div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">ولتاژ (V)</label>
+                            <input type="number" id="calc-voltage" placeholder="مثال: 12" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcPower()">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">مقاومت (Ω)</label>
+                            <input type="number" id="calc-resistance" placeholder="مثال: 10" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcPower()">
+                        </div>
+                        <div id="calc-power-result" style="display:none;" class="alert alert-info">
+                            <span>⚡</span><div id="calc-power-text"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🌀</span><div class="card-title">محاسبه RPM موتور براشلس</div></div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">KV موتور</label>
+                            <input type="number" id="calc-kv" placeholder="مثال: 1000" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcRPM()">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">ولتاژ باتری (V)</label>
+                            <input type="number" id="calc-volt" placeholder="مثال: 11.1" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit;" oninput="calcRPM()">
+                        </div>
+                        <div id="calc-rpm-result" style="display:none;" class="alert alert-warning">
+                            <span>🌀</span><div id="calc-rpm-text"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">📡</span><div class="card-title">محاسبه Duty Cycle سروو</div></div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div>
+                            <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:6px;">زاویه سروو (0-180°)</label>
+                            <input type="range" id="calc-angle" min="0" max="180" value="90" style="width:100%;accent-color:var(--primary);" oninput="calcServo()">
+                            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:4px;">
+                                <span>0°</span><span id="angle-display">90°</span><span>180°</span>
+                            </div>
+                        </div>
+                        <div id="calc-servo-result" class="alert alert-success">
+                            <span>📡</span><div id="calc-servo-text">پالس: 1500µs | Duty Cycle: 7.5%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== SETTINGS PAGE ===== -->
+        <div class="page" id="page-settings">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">⚙️ تنظیمات</div>
+                    <div class="section-sub">پیکربندی سیستم</div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">🎨</span><div class="card-title">ظاهر</div></div>
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:13px;font-weight:600;">تم تیره</div>
+                                <div style="font-size:11px;color:var(--text2);">حالت پیش‌فرض</div>
+                            </div>
+                            <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--primary);">
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:13px;font-weight:600;">انیمیشن‌ها</div>
+                                <div style="font-size:11px;color:var(--text2);">نمایش انیمیشن در رابط کاربری</div>
+                            </div>
+                            <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--primary);">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><span class="card-icon">ℹ️</span><div class="card-title">درباره سیستم</div></div>
+                    <table class="specs-table">
+                        <tr><th>نسخه</th><td>RoboFault Pro v2.0</td></tr>
+                        <tr><th>تعداد ربات‌ها</th><td>8 دسته‌بندی</td></tr>
+                        <tr><th>سناریوهای خرابی</th><td>156 سناریو</td></tr>
+                        <tr><th>راه‌حل‌ها</th><td>324 راه‌حل</td></tr>
+                        <tr><th>زبان</th><td>فارسی / RTL</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end content -->
+</div><!-- end main -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">جزئیات</div>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div id="modalContent"></div>
+    </div>
+</div>
+                                 <script>
+// ===== NAVIGATION =====
+function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    const titles = {
+        'dashboard':'داشبورد','robots':'ربات‌ها','troubleshoot':'عیب‌یابی',
+        'components':'قطعات','encyclopedia':'دایره‌المعارف','common-issues':'مشکلات رایج',
+        'history':'تاریخچه','maintenance':'نگهداری','calculator':'ماشین‌حساب','settings':'تنظیمات'
+    };
+    document.getElementById('topbarTitle').textContent = titles[id] || id;
+    document.querySelectorAll('.nav-item').forEach(n => {
+        if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'"))
+            n.classList.add('active');
+    });
+    if(id === 'troubleshoot') initTroubleshoot();
+    if(id === 'calculator') calcServo();
+    window.scrollTo(0,0);
+    if (id === 'dashboard') loadRecentSessions();
+if (id === 'history') loadHistory();
+
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===== FILTER =====
+function filterRobots(cat, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.robot-card').forEach(card => {
+        card.style.display = (cat === 'all' || card.dataset.cat.includes(cat)) ? '' : 'none';
+    });
+}
+
+function filterComps(cat, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.comp-card').forEach(card => {
+        card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+    });
+}
+
+// ===== TROUBLESHOOT ENGINE =====
+const tsTree = {
+    start: {
+        title: '🔍 از کجا شروع کنیم؟',
+        desc: 'نوع مشکل را انتخاب کنید:',
+        options: [
+            { text: '⚡ مشکل برق و تغذیه', next: 'power' },
+            { text: '🔄 مشکل موتور و حرکت', next: 'motor' },
+            { text: '📡 مشکل سنسور', next: 'sensor' },
+            { text: '🖥️ مشکل کنترلر / برنامه', next: 'controller' },
+            { text: '🚁 مشکل پایداری پرواز', next: 'flight' },
+            { text: '📻 مشکل ارتباط بی‌سیم', next: 'wireless' },
+            { text: '⚙️ مشکل گیربکس', next: 'gearbox' },
+            { text: '📊 مشکل انکودر', next: 'encoder' },
+            { text: '🎛️ تنظیم و عیب‌یابی PID', next: 'pid' },
+            { text: '🔌 مشکل ارتباطات', next: 'comm' },
+            { text: '🔋 مشکل مدیریت توان', next: 'power_management' }
+
+        ]
+    },
+    power: {
+        title: '⚡ عیب‌یابی سیستم برق',
+        desc: 'ولتاژ باتری را اندازه بگیرید. وضعیت چیست؟',
+        options: [
+            { text: '🔴 ولتاژ صفر یا خیلی پایین است', next: 'power_low' },
+            { text: '🟡 ولتاژ نرمال ولی ربات روشن نمی‌شود', next: 'power_nostart' },
+            { text: '🟢 ولتاژ نرمال ولی زود تخلیه می‌شود', next: 'power_drain' }
+        ]
+    },
+    power_low: {
+        title: '🔋 ولتاژ پایین',
+        desc: 'بررسی کنید:',
+        solution: true,
+        steps: [
+            { title: 'شارژ باتری', desc: 'باتری را با شارژر مناسب شارژ کنید. LiPo: 4.2V per cell' },
+            { title: 'بررسی اتصال کوتاه', desc: 'اگر باتری سریع تخلیه شد → با مولتی‌متر اتصال کوتاه را بررسی کنید' },
+            { title: 'بررسی فیوز', desc: 'فیوز اصلی مدار را بررسی کنید — اگر سوخته باشد تعویض کنید' },
+            { title: 'کانکتور باتری', desc: 'اکسیداسیون یا شل بودن کانکتور باعث افت ولتاژ می‌شود' }
+        ]
+    },
+    power_nostart: {
+        title: '🔌 ربات روشن نمی‌شود',
+        desc: 'برق هست ولی ربات روشن نمی‌شود:',
+        solution: true,
+        steps: [
+            { title: 'بررسی کلید اصلی', desc: 'کلید پاور را بررسی کنید — با مولتی‌متر تست کنید' },
+            { title: 'بررسی رگولاتور ولتاژ', desc: 'خروجی LDO یا BEC را اندازه بگیرید — باید 5V یا 3.3V باشد' },
+            { title: 'بررسی کانکتورهای برد', desc: 'همه کانکتورهای برد آردوینو را چک کنید' },
+            { title: 'LED نشانگر', desc: 'آیا LED power روی برد روشن است؟ اگر نه → مشکل از تغذیه برد' }
+        ]
+    },
+    power_drain: {
+        title: '⚡ تخلیه سریع باتری',
+        desc: 'باتری سریع تخلیه می‌شود:',
+        solution: true,
+        steps: [
+            { title: 'اندازه‌گیری جریان کل', desc: 'با آمپرمتر سری جریان کل را بسنجید — باید با محاسبات مطابقت داشته باشد' },
+            { title: 'بررسی استال موتور', desc: 'موتوری که گیر کرده جریان زیادی می‌کشد — موتورها را یکی‌یکی تست کنید' },
+            { title: 'C Rating باتری', desc: 'Max Current = C × Capacity — اگر کافی نیست باتری با C بالاتر بگیرید' },
+            { title: 'سلامت باتری LiPo', desc: 'باتری کهنه ظرفیت واقعی کمتری دارد — باتری را با capacity tester تست کنید' }
+        ]
+    },
+    motor: {
+        title: '🔄 عیب‌یابی موتور',
+        desc: 'نوع موتور را انتخاب کنید:',
+        options: [
+            { text: '⚡ موتور DC (جاروبک‌دار)', next: 'motor_dc' },
+            { text: '🌀 موتور براشلس', next: 'motor_bldc' },
+            { text: '🔄 سروو موتور', next: 'motor_servo' }
+        ]
+    },
+    motor_dc: {
+        title: '⚡ موتور DC — عیب‌یابی',
+        desc: 'مشکل موتور DC چیست؟',
+        options: [
+            { text: '❌ اصلاً نمی‌چرخد', next: 'motor_dc_dead' },
+            { text: '🐌 آهسته‌تر از حد معمول', next: 'motor_dc_slow' },
+            { text: '🔊 صدای غیرعادی دارد', next: 'motor_dc_noise' }
+        ]
+    },
+    motor_dc_dead: {
+        title: '❌ موتور DC نمی‌چرخد',
+        solution: true,
+        steps: [
+            { title: 'تست مستقیم با باتری', desc: 'موتور را مستقیم به باتری وصل کنید — اگر چرخید مشکل از درایور است' },
+            { title: 'بررسی درایور L298N/L293D', desc: 'ولتاژ پین‌های Enable و Input را بسنجید — Enable باید HIGH باشد' },
+            { title: 'بررسی سیگنال PWM', desc: 'با اسیلوسکوپ یا LED تست کنید سیگنال از آردوینو می‌آید' },
+            { title: 'بررسی جاروبک‌های موتور', desc: 'در موتورهای قدیمی جاروبک‌ها سایش پیدا می‌کنند — بررسی و تعویض' },
+            { title: 'گرمای درایور', desc: 'اگر درایور داغ است و shutdown کرده — هیت‌سینک اضافه کنید' }
+        ]
+    },
+    motor_dc_slow: {
+        title: '🐌 موتور DC کند است',
+        solution: true,
+        steps: [
+            { title: 'بررسی ولتاژ تغذیه موتور', desc: 'ولتاژ روی ترمینال موتور را بسنجید — افت ولتاژ نشان‌دهنده مقاومت اضافه است' },
+            { title: 'Duty Cycle PWM', desc: 'مقدار PWM در کد را بررسی کنید — شاید مقدار کم تنظیم شده' },
+            { title: 'بار مکانیکی', desc: 'ربات را بلند کنید — اگر بدون بار سریع شد مشکل از گیربکس یا چرخ است' },
+            { title: 'ولتاژ dropout درایور', desc: 'L298N حدود 2V افت ولتاژ دارد — از MOSFET driver استفاده کنید' }
+        ]
+    },
+    motor_dc_noise: {
+        title: '🔊 موتور DC صدای غیرعادی',
+        solution: true,
+        steps: [
+            { title: 'بررسی یاتاقان‌ها', desc: 'صدای خش‌خش → یاتاقان فرسوده — روغن‌کاری یا تعویض' },
+            { title: 'جاروبک‌های فرسوده', desc: 'صدای جرقه → جاروبک‌ها سایش دارند — تعویض کنید' },
+            { title: 'تداخل الکترومغناطیسی', desc: 'خازن 100nF بین پایه‌های موتور و GND وصل کنید' },
+            { title: 'اتصال شل', desc: 'سیم‌های موتور را محکم کنید — لرزش باعث قطع و وصل می‌شود' }
+        ]
+    },
+    motor_bldc: {
+        title: '🌀 موتور براشلس — عیب‌یابی',
+        solution: true,
+        steps: [
+            { title: 'کالیبراسیون ESC', desc: 'ESC را کالیبره کنید: throttle max → power on → beep → throttle min → beep' },
+            { title: 'بررسی اتصال 3 فاز', desc: 'هر سه سیم موتور به ESC وصل باشد — قطع هر کدام → ارتعاش شدید' },
+            { title: 'تغییر جهت چرخش', desc: 'برای معکوس کردن جهت → دو سیم از سه سیم را جابجا کنید' },
+            { title: 'بررسی mag motor', desc: 'موتور را با دست بچرخانید — باید روان باشد و مقاومت یکنواختی داشته باشد' },
+            { title: 'تنظیم timing ESC', desc: 'timing بالا → توان بیشتر ولی گرمای بیشتر — برای کوادکوپتر: Low timing' }
+        ]
+    },
+    motor_servo: {
+        title: '🔄 سروو موتور — عیب‌یابی',
+        solution: true,
+        steps: [
+            { title: 'بررسی سیگنال PWM', desc: 'سروو نیاز به پالس 50Hz دارد: 1000-2000µs. با اسیلوسکوپ بررسی کنید' },
+            { title: 'تغذیه جداگانه', desc: 'سروو جریان زیادی می‌کشد — از منبع تغذیه جداگانه 5V/2A استفاده کنید' },
+            { title: 'لرزش سروو', desc: 'لرزش → تداخل PWM یا مشکل مکانیکی گیربکس داخلی' },
+            { title: 'محدوده زاویه', desc: 'اگر صدای کلیک می‌دهد → از محدوده مجاز (0-180°) خارج شده' },
+            { title: 'خرابی پتانسیومتر', desc: 'سروو آنالوگ → پتانسیومتر داخلی سایش → رفتار نامنظم' }
+        ]
+    },
+    sensor: {
+        title: '📡 عیب‌یابی سنسور',
+        desc: 'کدام سنسور مشکل دارد؟',
+        options: [
+            { text: '👁️ سنسور IR (خط‌دنبال‌کن)', next: 'sensor_ir' },
+            { text: '📡 سنسور اولتراسونیک', next: 'sensor_ultrasonic' },
+            { text: '📐 IMU / ژیروسکوپ', next: 'sensor_imu' }
+        ]
+    },
+    sensor_ir: {
+        title: '👁️ سنسور IR — عیب‌یابی',
+        solution: true,
+        steps: [
+            { title: 'بررسی LED مادون قرمز', desc: 'با دوربین موبایل — LED باید روشن (بنفش) دیده شود' },
+            { title: 'ارتفاع سنسور', desc: 'فاصله ایده‌آل از سطح: 1-3 سانتیمتر' },
+            { title: 'تنظیم پتانسیومتر', desc: 'پتانسیومتر آبی روی ماژول را تنظیم کنید تا LED خروجی روی لبه تغییر کند' },
+            { title: 'تداخل نور محیط', desc: 'نور فلورسنت و خورشید تداخل ایجاد می‌کند — از سنسور TCRT5000 با خازن استفاده کنید' },
+            { title: 'کالیبراسیون در کد', desc: 'مقادیر آستانه (threshold) را روی سطح واقعی مسابقه کالیبره کنید' }
+        ]
+    },
+    sensor_ultrasonic: {
+        title: '📡 اولتراسونیک HC-SR04',
+        solution: true,
+        steps: [
+            { title: 'بررسی تایمینگ Trigger', desc: 'پالس Trigger باید حداقل 10µs باشد — کد را بررسی کنید' },
+            { title: 'timeout در خواندن Echo', desc: 'اگر هیچ اکوئی نیامد → timeout تنظیم کنید تا برنامه قفل نکند' },
+            { title: 'سطوح بازتابنده', desc: 'سطوح نرم و زاویه‌دار امواج را پراکنده می‌کنند — نتیجه نادرست' },
+            { title: 'تداخل چند سنسور', desc: 'اگر چند HC-SR04 دارید → آنها را با تأخیر زمانی trigger کنید' },
+            { title: 'دما و سرعت صوت', desc: 'در دماهای مختلف سرعت صوت تغییر می‌کند → فاکتور تصحیح اعمال کنید' }
+        ]
+    },
+    sensor_imu: {
+        title: '📐 IMU / MPU-6050',
+        solution: true,
+        steps: [
+            { title: 'بررسی آدرس I2C', desc: 'آدرس پیش‌فرض 0x68 است — اگر AD0=HIGH بشه 0x69. با I2C scanner بررسی کنید' },
+            { title: 'کالیبراسیون offset', desc: 'MPU را روی سطح صاف بگذارید و offset ژیروسکوپ و شتاب‌سنج را بخوانید' },
+                       { title: 'drift ژیروسکوپ', desc: 'ژیروسکوپ با گذشت زمان drift می‌کند — از فیلتر Complementary یا Kalman استفاده کنید' },
+            { title: 'نویز لرزشی', desc: 'لرزش موتورها نویز IMU را زیاد می‌کند — MPU را با foam ضد لرزش نصب کنید' },
+            { title: 'فرکانس نمونه‌برداری', desc: 'حداقل 100Hz برای تعادل‌دهنده — رجیستر DLPF_CFG را تنظیم کنید' }
+        ]
+    },
+    controller: {
+        title: '🖥️ عیب‌یابی کنترلر',
+        desc: 'نوع مشکل را انتخاب کنید:',
+        options: [
+            { text: '❌ آردوینو آپلود نمی‌شود', next: 'ctrl_upload' },
+            { text: '🔄 برنامه کرش می‌کند', next: 'ctrl_crash' },
+            { text: '⏱️ تأخیر در اجرا', next: 'ctrl_delay' }
+        ]
+    },
+    ctrl_upload: {
+        title: '❌ مشکل آپلود آردوینو',
+        solution: true,
+        steps: [
+            { title: 'بررسی پورت COM', desc: 'Device Manager را باز کنید — پورت COM آردوینو را پیدا و در IDE انتخاب کنید' },
+            { title: 'درایور CH340/CP2102', desc: 'اگر پورت COM ظاهر نمی‌شود → درایور USB-TTL را نصب کنید' },
+            { title: 'بررسی بورد انتخابی', desc: 'در IDE: Tools → Board → نوع صحیح آردوینو را انتخاب کنید' },
+            { title: 'bootloader خراب', desc: 'اگر avrdude error می‌دهد → bootloader را با ISP programmer مجدد بنویسید' },
+            { title: 'تداخل سریال', desc: 'اگر از SoftwareSerial استفاده می‌کنید → هنگام آپلود سیم‌های TX/RX را بکشید' }
+        ]
+    },
+    ctrl_crash: {
+        title: '🔄 برنامه کرش می‌کند',
+        solution: true,
+        steps: [
+            { title: 'بررسی حافظه RAM', desc: 'آردوینو UNO فقط 2KB RAM دارد — از F() macro برای string ها استفاده کنید' },
+            { title: 'stack overflow', desc: 'متغیرهای بزرگ را global تعریف کنید نه داخل تابع' },
+            { title: 'watchdog timer', desc: 'اگر loop قفل می‌کند → Watchdog را فعال کنید تا آردوینو ریست شود' },
+            { title: 'تداخل interrupt', desc: 'در ISR کد کوتاه بنویسید — از delay() داخل interrupt استفاده نکنید' },
+            { title: 'integer overflow', desc: 'نوع داده را بررسی کنید — اگر مقدار از محدوده int خارج شد → از long استفاده کنید' }
+        ]
+    },
+    ctrl_delay: {
+        title: '⏱️ تأخیر در اجرای برنامه',
+        solution: true,
+        steps: [
+            { title: 'حذف delay()', desc: 'به جای delay() از millis() استفاده کنید تا حلقه بلاک نشود' },
+            { title: 'بهینه‌سازی Serial', desc: 'Serial.print زیاد باعث کندی می‌شود — fata rate را بالا ببرید یا حذف کنید' },
+            { title: 'فرکانس loop', desc: 'با Serial.println(micros()) زمان هر loop را اندازه بگیرید' },
+            { title: 'محاسبات سنگین', desc: 'عملیات float و sqrt کند هستند — از integer math جایگزین استفاده کنید' }
+        ]
+    },
+    flight: {
+        title: '🚁 عیب‌یابی پایداری پرواز',
+        desc: 'مشکل پرواز چیست؟',
+        options: [
+            { text: '〰️ نوسان و vibration دارد', next: 'flight_oscillate' },
+            { text: '↗️ به یک طرف کشیده می‌شود', next: 'flight_drift' },
+            { text: '❌ کوادکوپتر flip می‌کند', next: 'flight_flip' }
+        ]
+    },
+    flight_oscillate: {
+        title: '〰️ نوسان کوادکوپتر',
+        solution: true,
+        steps: [
+            { title: 'کاهش Kp', desc: 'نوسان سریع → Kp خیلی زیاد است — به تدریج کاهش دهید (20% هر بار)' },
+            { title: 'افزایش Kd', desc: 'Kd نوسان را میرا می‌کند — با احتیاط افزایش دهید' },
+            { title: 'بالانس پروانه', desc: 'پروانه‌های نامتعادل ارتعاش مکانیکی ایجاد می‌کنند — prop balancer استفاده کنید' },
+            { title: 'ضد لرزش فلایت کنترلر', desc: 'FC را روی foam ضد لرزش نصب کنید — لرزش موتور IMU را خراب می‌کند' },
+            { title: 'کالیبراسیون ESC', desc: 'همه ESCها باید یکسان کالیبره باشند — all-at-once calibration انجام دهید' }
+        ]
+    },
+    flight_drift: {
+        title: '↗️ انحراف در پرواز',
+        solution: true,
+        steps: [
+            { title: 'تریم رادیو', desc: 'از trim کنترلر استفاده کنید تا انحراف را جبران کنید' },
+            { title: 'کالیبراسیون IMU', desc: 'FC را روی سطح صاف کالیبره کنید — شتاب‌سنج باید صفر باشد' },
+            { title: 'جهت نصب FC', desc: 'فلایت کنترلر باید دقیقاً در راستای محور ربات نصب شود' },
+            { title: 'یکسان نبودن موتورها', desc: 'KV موتورهای مخالف باید یکسان باشد — موتورها را swap کنید و تست کنید' },
+            { title: 'مرکز ثقل', desc: 'مرکز ثقل باید دقیقاً وسط قاب باشد — باتری را جابجا کنید' }
+        ]
+    },
+    flight_flip: {
+        title: '❌ کوادکوپتر flip می‌کند',
+        solution: true,
+        steps: [
+            { title: 'جهت چرخش موتورها', desc: 'الگوی CW/CCW باید صحیح باشد: M1↺ M2↻ M3↻ M4↺ (بسته به FC)' },
+            { title: 'ترتیب موتورها در FC', desc: 'شماره‌گذاری موتور در نرم‌افزار FC باید با واقعیت مطابقت داشته باشد' },
+            { title: 'جهت نصب FC', desc: 'اگر FC برعکس نصب شده → در تنظیمات جهت را اصلاح کنید' },
+            { title: 'اتصال ESC', desc: 'خروجی FC به ESC صحیح وصل باشد — موتور 1 به خروجی 1' }
+        ]
+    },
+    wireless: {
+        title: '📻 عیب‌یابی ارتباط بی‌سیم',
+        solution: true,
+        steps: [
+            { title: 'بررسی پیربندی (Binding)', desc: 'گیرنده و فرستنده را مجدداً bind کنید — دکمه bind روی گیرنده' },
+            { title: 'تداخل فرکانسی', desc: 'در محیط‌های شلوغ WiFi روی 2.4GHz تداخل ایجاد می‌کند — از 900MHz یا 5.8GHz استفاده کنید' },
+            { title: 'آنتن', desc: 'آنتن باید عمود بر زمین و دور از قطعات فلزی باشد' },
+            { title: 'ولتاژ گیرنده', desc: 'اکثر گیرنده‌ها 5V نیاز دارند — از BEC با کیفیت استفاده کنید' },
+                       { title: 'Failsafe', desc: 'تنظیم Failsafe ضروری است — در صورت قطع سیگنال موتورها باید خاموش شوند' }
+        ]
+    },
+    gearbox: {
+        title: '⚙️ عیب‌یابی گیربکس',
+        desc: 'نوع مشکل گیربکس را انتخاب کنید:',
+        options: [
+            { text: '🔊 صدای غیرعادی از گیربکس', next: 'gearbox_noise' },
+            { text: '💧 نشتی روغن گیربکس', next: 'gearbox_oil' },
+            { text: '⚡ گیربکس گیر می‌کند', next: 'gearbox_stuck' },
+            { text: '🐌 گیربکس لقی دارد', next: 'gearbox_backlash' }
+        ]
+    },
+    gearbox_noise: {
+        title: '🔊 صدای غیرعادی گیربکس',
+        solution: true,
+        steps: [
+            { title: 'بررسی روغن‌کاری', desc: 'دنده‌های خشک صدای جیر جیر می‌دهند — با گریس مناسب روغن‌کاری کنید' },
+            { title: 'بررسی دنده‌های شکسته', desc: 'صدای ضربه‌ای → دنده شکسته — گیربکس را باز کرده و بررسی کنید' },
+            { title: 'تراز بودن شفت', desc: 'شفت کج باعث صدای غیرعادی می‌شود — تراز بودن محور را با چشم یا dial indicator بررسی کنید' },
+            { title: 'یاتاقان‌های فرسوده', desc: 'صدای خش‌خش → یاتاقان‌ها فرسوده‌اند — تعویض کنید' },
+            { title: 'بست‌های شل', desc: 'پیچ‌های نگهدارنده گیربکس را سفت کنید — لرزش باعث صدا می‌شود' }
+        ]
+    },
+    gearbox_oil: {
+        title: '💧 نشتی روغن گیربکس',
+        solution: true,
+        steps: [
+            { title: 'بررسی واشرها', desc: 'واشرهای درب گیربکس را بررسی کرده و در صورت فرسودگی تعویض کنید' },
+            { title: 'بررسی کاسه‌نمد', desc: 'کاسه‌نمد محور اگر فرسوده باشد نشت می‌دهد — تعویض کنید' },
+            { title: 'پر بودن بیش از حد', desc: 'روغن بیش از حد داخل گیربکس فشار ایجاد می‌کند — سطح روغن را بررسی کنید' },
+            { title: 'ترک پوسته', desc: 'در اثر ضربه ترک ایجاد می‌شود — با چسب اپوکسی یا تعویض پوسته برطرف کنید' }
+        ]
+    },
+    gearbox_stuck: {
+        title: '⚡ گیر کردن گیربکس',
+        solution: true,
+        steps: [
+            { title: 'بررسی جسم خارجی', desc: 'گیربکس را باز کرده و داخل آن را بررسی کنید — ذرات فلزی یا جسم خارجی را بیرون بیاورید' },
+            { title: 'دنده‌های شکسته', desc: 'دنده شکسته داخل مسیر گیر می‌کند — همه دنده‌ها را بررسی و تعویض کنید' },
+            { title: 'روغن‌کاری ناکافی', desc: 'گیربکس خشک در دماهای بالا منبسط شده و گیر می‌کند — روغن‌کاری مناسب انجام دهید' },
+            { title: 'بار بیش از حد', desc: 'گشتاور بیشتر از ظرفیت گیربکس → جعبه دنده قفل می‌شود — نسبت دنده را تغییر دهید' }
+        ]
+    },
+    gearbox_backlash: {
+        title: '🐌 لقی گیربکس',
+        solution: true,
+        steps: [
+            { title: 'فاصله بین دنده‌ها', desc: 'فاصله دنده‌ها با گذشت زمان زیاد می‌شود — از دنده‌های با تلرانس کمتر استفاده کنید' },
+            { title: 'سایش دنده', desc: 'دنده‌های پلاستیکی سریع‌تر سایش می‌یابند — به دنده‌های فلزی تغییر دهید' },
+            { title: 'استفاده از پیش‌بار', desc: 'برای حذف لقی از گیربکس‌های با پیش‌بار (preloaded) استفاده کنید' },
+            { title: 'در کد جبران کنید', desc: 'برای ربات‌های دقیق می‌توانید لقی را در الگوریتم کنترل جبران کنید' }
+        ]
+    },
+    encoder: {
+        title: '📊 عیب‌یابی انکودر',
+        desc: 'مشکل انکودر را انتخاب کنید:',
+        options: [
+            { text: '❌ انکودر اصلاً مقدار نمی‌دهد', next: 'encoder_dead' },
+            { text: '〰️ مقدار انکودر نویز دارد', next: 'encoder_noise' },
+            { text: '↔️ جهت شمارش اشتباه است', next: 'encoder_direction' },
+            { text: '📉 پالس‌ها از دست می‌روند', next: 'encoder_miss' }
+        ]
+    },
+    encoder_dead: {
+        title: '❌ انکودر کار نمی‌کند',
+        solution: true,
+        steps: [
+            { title: 'بررسی تغذیه', desc: 'انکودرهای آپتیکال به 5V نیاز دارند — ولتاژ VCC را با مولتی‌متر بسنجید' },
+            { title: 'بررسی خروجی با مولتی‌متر', desc: 'هنگام چرخش محور پین A یا B باید بین 0 و 5V نوسان داشته باشد' },
+            { title: 'Pull-up مقاومت', desc: 'انکودرهای open-collector به مقاومت pull-up 10kΩ نیاز دارند' },
+            { title: 'بررسی Interrupt پین', desc: 'در آردوینو فقط پین 2 و 3 قابلیت interrupt دارند — پین‌های اتصال را بررسی کنید' },
+            { title: 'تست با Serial Monitor', desc: 'مقدار counter را در loop پرینت کنید و محور را دستی بچرخانید' }
+        ]
+    },
+    encoder_noise: {
+        title: '〰️ نویز انکودر',
+        solution: true,
+        steps: [
+            { title: 'خازن دی‌باونس', desc: 'خازن 100nF بین پین خروجی و GND نویز مکانیکی را حذف می‌کند' },
+            { title: 'دی‌باونس نرم‌افزاری', desc: 'در ISR یک تأخیر کوتاه 1ms اضافه کنید تا باونس فیلتر شود' },
+            { title: 'تداخل EMI', desc: 'سیم انکودر را از سیم‌های موتور دور کنید — از سیم شیلددار استفاده کنید' },
+            { title: 'سرعت خیلی بالا', desc: 'اگر سرعت چرخش زیاد است → از انکودر با resolution کمتر استفاده کنید' }
+        ]
+    },
+    encoder_direction: {
+        title: '↔️ جهت اشتباه انکودر',
+        solution: true,
+        steps: [
+            { title: 'جابجایی پین A و B', desc: 'پین‌های A و B انکودر را با هم عوض کنید — جهت شمارش معکوس می‌شود' },
+            { title: 'تغییر در کد', desc: 'در ISR مقدار counter++ را به counter-- تغییر دهید' },
+            { title: 'بررسی quadrature', desc: 'اگر از انکودر quadrature استفاده می‌کنید ترتیب پالس‌های A و B جهت را مشخص می‌کند' }
+        ]
+    },
+    encoder_miss: {
+        title: '📉 از دست رفتن پالس',
+        solution: true,
+        steps: [
+            { title: 'استفاده از Interrupt', desc: 'از polling صرف‌نظر کنید — همیشه از attachInterrupt() برای خواندن استفاده کنید' },
+            { title: 'ISR کوتاه باشد', desc: 'داخل ISR فقط counter را تغییر دهید — هیچ عملیات سنگینی انجام ندهید' },
+            { title: 'سرعت پردازنده', desc: 'اگر سرعت خیلی بالاست → به STM32 یا ESP32 با فرکانس بالاتر مهاجرت کنید' },
+            { title: 'volatile متغیر', desc: 'متغیر counter را volatile تعریف کنید تا کامپایلر آن را cache نکند' }
+        ]
+    },
+    pid: {
+        title: '🎛️ عیب‌یابی و تنظیم PID',
+        desc: 'رفتار سیستم را انتخاب کنید:',
+        options: [
+            { text: '〰️ نوسان زیاد حول هدف', next: 'pid_oscillate' },
+            { text: '🐌 خیلی کند به هدف می‌رسد', next: 'pid_slow' },
+            { text: '↗️ از هدف رد می‌شود (overshoot)', next: 'pid_overshoot' },
+            { text: '📉 هرگز به هدف نمی‌رسد (steady-state error)', next: 'pid_steady' }
+        ]
+    },
+    pid_oscillate: {
+        title: '〰️ نوسان در PID',
+        solution: true,
+        steps: [
+            { title: 'Kp را کاهش دهید', desc: 'نوسان سریع نشانه Kp بیش از حد است — 20% کاهش دهید تا نوسان کم شود' },
+            { title: 'Kd را افزایش دهید', desc: 'Kd اثر میرایی دارد — با احتیاط افزایش دهید (نویز را تقویت می‌کند)' },
+            { title: 'فرکانس loop را بررسی کنید', desc: 'PID باید با فرکانس ثابت اجرا شود — از millis() برای timing استفاده کنید' },
+            { title: 'فیلتر روی Kd', desc: 'Kd بدون فیلتر نویز را تقویت می‌کند — از low-pass filter روی خطا استفاده کنید' }
+        ]
+    },
+    pid_slow: {
+        title: '🐌 پاسخ کند PID',
+        solution: true,
+        steps: [
+            { title: 'Kp را افزایش دهید', desc: 'پاسخ کند نشانه Kp کم است — به تدریج افزایش دهید تا زمان رسیدن کاهش یابد' },
+            { title: 'Ki را اضافه کنید', desc: 'Ki خطای ماندگار را حذف می‌کند — مقدار کوچک شروع کنید (0.001)' },
+            { title: 'بررسی محدودیت actuator', desc: 'شاید سیستم محدودیت مکانیکی دارد — موتور توان کافی دارد؟' },
+            { title: 'بررسی واحدها', desc: 'مطمئن شوید خطا و خروجی در واحدهای صحیح محاسبه می‌شوند' }
+        ]
+    },
+    pid_overshoot: {
+        title: '↗️ Overshoot در PID',
+        solution: true,
+        steps: [
+            { title: 'Kp را کاهش دهید', desc: 'overshoot زیاد → Kp بالاست — کاهش دهید' },
+            { title: 'Kd را افزایش دهید', desc: 'Kd عبور از هدف را کاهش می‌دهد — با احتیاط افزایش دهید' },
+            { title: 'Anti-windup برای Ki', desc: 'اگر Ki دارید → integral را محدود (clamp) کنید تا windup نشود' },
+            { title: 'Setpoint ramping', desc: 'به جای تغییر ناگهانی هدف، آن را به تدریج تغییر دهید' }
+        ]
+    },
+    pid_steady: {
+        title: '📉 خطای ماندگار PID',
+        solution: true,
+        steps: [
+            { title: 'Ki اضافه کنید', desc: 'خطای ماندگار با Ki حذف می‌شود — مقدار کوچک (0.001) شروع کنید' },
+            { title: 'بررسی اصطکاک', desc: 'اگر سیستم اصطکاک زیادی دارد → feedforward term اضافه کنید' },
+            { title: 'بررسی سنسور', desc: 'مطمئن شوید سنسور مقدار صحیح می‌خواند — با مقدار واقعی مقایسه کنید' },
+                        { title: 'Dead-band', desc: 'اگر خطای کوچک مهم نیست → dead-band تعریف کنید — اگر |error| < threshold خروجی صفر باشد' }
+        ]
+    },
+    comm: {
+        title: '📡 عیب‌یابی ارتباطات',
+        desc: 'نوع پروتکل ارتباطی را انتخاب کنید:',
+        options: [
+            { text: '📟 I2C', next: 'comm_i2c' },
+            { text: '🔌 SPI', next: 'comm_spi' },
+            { text: '📺 UART / Serial', next: 'comm_uart' },
+            { text: '📶 Bluetooth / WiFi', next: 'comm_wireless' }
+        ]
+    },
+    comm_i2c: {
+        title: '📟 مشکل I2C',
+        solution: true,
+        steps: [
+            { title: 'مقاومت Pull-up', desc: 'SDA و SCL باید مقاومت 4.7kΩ به 3.3V یا 5V داشته باشند' },
+            { title: 'I2C Scanner', desc: 'کد scanner را آپلود کنید تا آدرس دستگاه‌ها را پیدا کنید' },
+            { title: 'تداخل آدرس', desc: 'دو دستگاه با آدرس یکسان روی یک باس کار نمی‌کنند — آدرس را تغییر دهید' },
+            { title: 'طول سیم', desc: 'سیم I2C نباید از 30cm بیشتر شود — مقاومت pull-up را کاهش دهید' },
+            { title: 'سرعت باس', desc: 'بعضی دستگاه‌ها فقط 100kHz پشتیبانی می‌کنند — Wire.setClock(100000) استفاده کنید' }
+        ]
+    },
+    comm_spi: {
+        title: '🔌 مشکل SPI',
+        solution: true,
+        steps: [
+            { title: 'بررسی CS pin', desc: 'پین Chip Select باید قبل از انتقال LOW و بعد HIGH شود' },
+            { title: 'CPOL و CPHA', desc: 'تنظیمات mode باید با datasheet دستگاه مطابقت داشته باشد (Mode 0,1,2,3)' },
+            { title: 'سرعت SPI', desc: 'با سرعت پایین (1MHz) شروع کنید — بعد از کارکرد صحیح افزایش دهید' },
+            { title: 'ترتیب بیت', desc: 'MSBFIRST یا LSBFIRST باید با دستگاه مطابقت داشته باشد' }
+        ]
+    },
+    comm_uart: {
+        title: '📺 مشکل UART / Serial',
+        solution: true,
+        steps: [
+            { title: 'Baud Rate', desc: 'هر دو طرف باید baud rate یکسان داشته باشند — معمولاً 9600 یا 115200' },
+            { title: 'TX به RX', desc: 'TX یک دستگاه به RX دستگاه دیگر وصل شود — نه TX به TX' },
+            { title: 'ولتاژ منطقی', desc: 'آردوینو 5V است — اگر دستگاه 3.3V است از voltage divider یا logic level shifter استفاده کنید' },
+            { title: 'Buffer پر شدن', desc: 'Serial buffer آردوینو 64 بایت است — داده‌ها را سریع‌تر بخوانید' }
+        ]
+    },
+    comm_wireless: {
+        title: '📶 مشکل Bluetooth / WiFi',
+        solution: true,
+        steps: [
+            { title: 'پیربندی مجدد', desc: 'دستگاه را از لیست paired حذف کنید و دوباره pair کنید' },
+            { title: 'تداخل فرکانسی', desc: 'WiFi 2.4GHz و Bluetooth روی یک فرکانس کار می‌کنند — تداخل ایجاد می‌کنند' },
+            { title: 'ولتاژ ماژول', desc: 'HC-05 به 5V ولی ESP32 به 3.3V نیاز دارد — بررسی کنید' },
+            { title: 'AT Commands', desc: 'با AT commands پیکربندی ماژول را بررسی کنید — AT باید OK برگرداند' },
+            { title: 'آنتن', desc: 'ماژول را دور از قطعات فلزی و باتری قرار دهید' }
+        ]
+    },
+    power_management: {
+        title: '🔋 مدیریت توان',
+        desc: 'مشکل مدیریت توان را انتخاب کنید:',
+        options: [
+            { text: '⚡ ریست ناگهانی هنگام بار', next: 'pm_reset' },
+            { text: '🌡️ گرمای بیش از حد', next: 'pm_heat' },
+            { text: '📉 افت ولتاژ ناگهانی', next: 'pm_drop' }
+        ]
+    },
+    pm_reset: {
+        title: '⚡ ریست ناگهانی هنگام بار',
+        solution: true,
+        steps: [
+            { title: 'خازن بافر', desc: 'خازن الکترولیت 1000µF روی خط برق آردوینو spike های ولتاژ را جذب می‌کند' },
+            { title: 'تغذیه جداگانه', desc: 'موتورها و آردوینو از منابع جداگانه تغذیه شوند — فقط GND مشترک باشد' },
+            { title: 'بررسی جریان BEC', desc: 'اگر از BEC استفاده می‌کنید جریان آن باید کافی باشد (حداقل 3A)' },
+            { title: 'دیود جداساز', desc: 'دیود Schottky بین منابع مختلف برق از برگشت جریان جلوگیری می‌کند' }
+        ]
+    },
+    pm_heat: {
+        title: '🌡️ گرمای بیش از حد',
+        solution: true,
+        steps: [
+            { title: 'جریان بیش از حد', desc: 'جریان مصرفی را بسنجید — اگر از ظرفیت تجاوز کرده regultor یا درایور گرم می‌شود' },
+            { title: 'هیت‌سینک', desc: 'روی L298N و رگولاتورهای خطی هیت‌سینک نصب کنید' },
+            { title: 'استفاده از SMPS', desc: 'رگولاتور خطی حرارت زیاد تولید می‌کند — از buck converter (SMPS) استفاده کنید' },
+            { title: 'تهویه', desc: 'داخل شاسی ربات تهویه مناسب ایجاد کنید — فن کوچک 5V اضافه کنید' }
+        ]
+    },
+    pm_drop: {
+        title: '📉 افت ولتاژ ناگهانی',
+        solution: true,
+        steps: [
+            { title: 'مقاومت داخلی باتری', desc: 'باتری‌های فرسوده مقاومت داخلی بالا دارند — با بار واقعی ولتاژ را بسنجید' },
+            { title: 'سیم‌های نازک', desc: 'سیم‌های تغذیه اصلی حداقل 18AWG باشند — مقاومت سیم باعث افت می‌شود' },
+            { title: 'کانکتور شل', desc: 'کانکتورهای شل یا اکسید شده مقاومت ایجاد می‌کنند — تمیز و محکم کنید' },
+            { title: 'خازن موازی باتری', desc: 'خازن 4700µF موازی باتری افت ولتاژ لحظه‌ای را کاهش می‌دهد' }
+        ]
+    },
+    // --- زیرسیستم اول: سنسورها ---
+    'line_sensor_fault': {
+        title: 'خطای آرایه سنسور: عدم تشخیص خط یا خروجی نامعتبر سنسورها',
+        text: 'هنگام قرارگیری ربات روی خط سیاه، آیا ولتاژ خروجی سنسورهای وسط در آرایه خروجی آنالوگ (قبل از تبدیل به دیجیتال) بین تغییرات لبه خط، تغییری بیشتر از ۲ ولت را نشان می‌دهد؟',
+        options: [
+            { text: 'بله، تغییرات ولتاژ کاملاً مشهود و درست است.', next: 'line_sensor_adc' },
+            { text: 'خیر، ولتاژ در تمام وضعیت‌ها بالا (High) یا پایین (Low) ثابت مانده است.', next: 'line_sensor_hw' }
+        ]
+    },
+    'line_sensor_adc': {
+        title: 'بررسی واحد نگاشت دیجیتال (ADC Mapping)',
+        text: 'آیا در مانیتورینگ سریال، مقادیر خروجی سنسورها پس از اعمال فرمول کالیبراسیون به درستی بین ۰ تا ۱۰۰۰ تغییر می‌کنند یا داده‌ها در سقف اشباع (مثلاً ۱۰۲۳ ثابت) گیر کرده‌اند؟',
+        options: [
+            { text: 'بله، داده‌های کالیبره‌شده پایدار و معتبر هستند.', next: 'line_sensor_ambient' },
+            { text: 'خیر، داده‌ها در سقف یا کف کانال ADC قفل شده‌اند.', next: 'line_sensor_ref_volt' }
+        ]
+    },
+    'line_sensor_hw': {
+        title: 'نقص فیزیکی در لایه اپتو-الکترونیک',
+        text: 'احتمال سوختن دیودهای فرستنده یا کثیفی هوزینگ سنسور وجود دارد. با دوربین گوشی بررسی کنید آیا نور بنفش‌رنگ LEDهای مادون قرمز روشن است؟ جریان مصرفی مدار سنسور را اندازه بگیرید.',
+        solved: false
+    },
+    'line_sensor_ambient': {
+        title: 'تداخل فرکانسی نور محیط (Ambient Light Interfere)',
+        text: 'خروجی سنسور از نظر الکترونیکی سالم است. پدیده اشباع ناشی از نور خورشید یا لامپ‌های محیط رخ داده است. باید برای آرایه سنسور سایه‌بان مکانیکی تعبیه کرده و فرکانس نمونه‌برداری سنسور را با مدولاسیون مربعی جریان فرستنده‌ها هماهنگ کنید.',
+        solved: true
+    },
+    'line_sensor_ref_volt': {
+        title: 'انحراف ولتاژ مرجع ADC',
+        text: 'ولتاژ مرجع ($V_{ref}$) مبدل آنالوگ به دیجیتال میکروکنترلر دچار ریپل شدید شده است. یک خازن ۱۰۰ نانوفاراد تانتالیوم موازی با پایه $V_{ref}$ قرار دهید و گاند آنالوگ (AGND) را از گاند دیجیتال (DGND) با یک سلف کوچک (Ferrite Bead) ایزوله کنید.',
+        solved: true
+    },
+
+    // --- زیرسیستم دوم: موتورها ---
+    'line_motor_fault': {
+        title: 'خطای پیشران: نوسان دورانی شدید یا عدم توانایی در چرخش‌های ناگهانی',
+        text: 'آیا موتورها در خطوط مستقیم بدون نوسان حرکت می‌کنند و مشکل فقط در پیچ‌های تند (لبه‌های ناپیوسته خط) پدیدار می‌شود؟',
+        options: [
+            { text: 'بله، در خط مستقیم عالی است اما در پیچ‌ها ربات از خط خارج می‌شود.', next: 'line_motor_saturation' },
+            { text: 'خیر، ربات از همان ابتدا حرکت نوسانی و لرزش شدید (شبیه به چترنیگ) دارد.', next: 'line_motor_pwm' }
+        ]
+    },
+    'line_motor_saturation': {
+        title: 'پدیده اشباع گشتاور و افت ولتاژ بار (Drop Volts)',
+        text: 'هنگام ورود به پیچ، جریان کشیده شده توسط موتورها به شدت افزایش می‌یابد. ولتاژ دو سر باتری را در لحظه ورود به پیچ اندازه‌گیری کنید. آیا افت ولتاژ شدید (بیش از ۰.۸ ولت) رخ می‌دهد؟',
+        options: [
+            { text: 'بله، ولتاژ کلی سیستم هنگام پیچیدن به شدت افت می‌کند.', next: 'line_motor_battery' },
+            { text: 'خیر، ولتاژ پایدار است اما پاسخ زمانی موتور کند است.', next: 'line_motor_deadband' }
+        ]
+    },
+    'line_motor_battery': {
+        title: 'بالا بودن مقاومت داخلی باتری (Internal Resistance Error)',
+        text: 'باتری شما توانایی تامین جریان پله (Surge Current) را ندارد یا نرخ تخلیه (C-Rate) آن برای این وزن و گشتاور موتورها پایین است. باتری را با یک نسخه High C-Rate (حداقل 35C) تعویض کرده و ضریب پهنای باند جریان درایور را اصلاح کنید.',
+        solved: true
+    },
+    'line_motor_deadband': {
+        title: 'ناحیه مرده موتور (Dead-band Implementation)',
+        text: 'موتورها دارای اینرسی و ناحیه مرده ولتاژ هستند. در کدهای خود یک مقدار آفست ثابت به عنوان حداقل سیگنال محرک ($V_{min}$) تعریف کنید تا خروجی کنترلر هیچ‌گاه از محدوده گشتاور نامی موتور پایین‌تر نیاید.',
+        solved: true
+    },
+    'line_motor_pwm': {
+        title: 'تداخل فرکانس PWM در لایه گیت درایور',
+        text: 'فرکانس موج PWM اعمالی به درایور TB6612FNG را بررسی کنید. اگر فرکانس خیلی پایین باشد (زیر ۱ کیلوهرتز)، موتورها دچار لرزش مکانیکی و رزونانس می‌شوند. فرکانس تایمر میکروکنترلر را روی حداقل ۱6 الی ۲۰ کیلوهرتز تنظیم کنید تا سوییچینگ نرم و فراتر از محدوده شنوایی و لرزش سازه انجام شود.',
+        solved: true
+    },
+
+    // --- زیرسیستم سوم: کنترلر PID ---
+    'line_pid_fault': {
+        title: 'تحلیل پایداری سیستم کنترل حلقه بسته (PID Tuning)',
+        text: 'رفتار ناپایداری ربات به چه صورت است؟ آیا دامنه نوسانات دورانی ربات به مرور زمان بزرگتر می‌شود (واگرایی) یا ربات در مواجهه با خطای پله پاسخ بسیار کندی دارد؟',
+        options: [
+            { text: 'نوسانات سیستم به مرور زمان تشدید و واگرا شده و ربات پرت می‌شود.', next: 'line_pid_divergent' },
+            { text: 'ربات اصلا نوسان ندارد ولی به قدری کند است که خطوط زاویه‌دار را گم می‌کند.', next: 'line_pid_sluggish' }
+        ]
+    },
+    'line_pid_divergent': {
+        title: 'واگرایی ناشی از بهره بیش از حد یا پدیده Integral Windup',
+        text: 'آیا در کدهای خود از ترم انتگرال ($K_i$) استفاده کرده‌اید و برای آن سقف محدودکننده (Anti-Windup) قرار داده‌اید؟',
+        options: [
+            { text: 'بله، از ترم انتگرال استفاده شده ولی محدودکننده‌ای در کد ندارد.', next: 'line_pid_windup' },
+            { text: 'خیر، سیستم فقط با ضرایب PD (تفاضلی-تناسبی) کار می‌کند.', next: 'line_pid_kp_kd' }
+        ]
+    },
+    'line_pid_windup': {
+        title: 'اشباع ترم انتگرال (Integral Windup Solution)',
+        text: 'انباشت خطا در ترم انتگرال سبب شده که حتی پس از صفر شدن خطا، خروجی موتورها همچنان در بالاترین حد باقی بماند که عامل اصلی واگرایی است. حتماً یک شرط اشباع (Saturation Limit) برای مقدار حداکثر خروجی انتگرال در کدهای پردازشی خود به این صورت اعمال کنید: `if(integral > max) integral = max;`',
+        solved: true
+    },
+    'line_pid_kp_kd': {
+        title: 'عدم تعادل بین گام پاسخ تناسبی و میراکننده ($K_p / K_d$)',
+        text: 'ضریب $K_p$ شما نسبت به پایداری سیستم بسیار بزرگ است، یا ضریب $K_d$ توانایی ایجاد دمپینگ (میراکنندگی) لازم را ندارد. مقدار $K_p$ را نصف کرده و ضریب تفاضلی $K_d$ را به صورت پله‌های کوچک افزایش دهید تا پاسخ سیستم به فرم بحرانی (Critically Damped) نزدیک شود.',
+        solved: true
+    },
+    'line_pid_sluggish': {
+        title: 'کند بودن سیستم و افت پاسخ فرکانسی سیستم کنترل',
+        text: 'سیستم به شدت میرا شده است (Overdamped). ضریب تناسبی $K_p$ را ۳۰ درصد افزایش دهید. اگر باز هم کند بود، زمان تناوب اجرای حلقه کنترل ($T_s$) را در میکروکنترلر چک کنید؛ این حلقه باید بدون هیچ تاخیری (Delay) و با استفاده از تایمر اینتراپت داخلی با فرکانس حداقل ۵۰۰ هرتز (هر ۲ میلی‌ثانیه یک‌بار) اجرا شود.',
+        solved: true
+    },
+    line_sensor_fault: {
+    title: '📡 عیب‌یابی آرایه سنسور مادون قرمز (مسیریاب)',
+    solution: true,
+    steps: [
+        {
+            title: 'بررسی لایه اپتو-الکترونیک و بایاس دیودها',
+            desc: 'با دوربین گوشی فرستنده‌های IR را چک کنید تا از انتشار نور در محدوده مادون قرمز اطمینان حاصل شود. ولتاژ دو سر مقاومت‌های بایاس فرستنده (معمولاً ۱۵۰ تا ۲۲۰ اهم) را اندازه بگیرید؛ ولتاژ باید حدود ۱.۲ ولت ثابت باشد.'
+        },
+        {
+            title: 'تحلیل دامنه ولتاژ آنالوگ (V_out) روی خط و زمینه',
+            desc: 'ولتاژ خروجی گیرنده‌ها را قبل از ورود به بافر یا میکرو با مولتی‌متر بسنجید. روی خط سیاه باید به sVcc (High) نزدیک باشد و روی زمینه سفید زیر ۰.۷ ولت (Low). اگر اختلاف ولتاژ (Delta V) کمتر از ۲ ولت است، فاصله مکانیکی سنسور تا زمین را بین ۲ تا ۸ میلی‌متر کالیبره کنید.'
+        },
+        {
+            title: 'حذف اثر اشباع ناشی از نور محیط (Ambient Light)',
+            desc: 'پدیده اشباع ناشی از امواج هالوژن یا خورشید را با تعبیه شیلد مکانیکی (سایه‌بان) دور آرایه سنسور برطرف کنید. در صورت پایداری خطا، متد مدولاسیون فرکانسی فرستنده‌ها (سوییچینگ با فرکانس بالای ۱ کیلوهرتز همگام با نمونه‌برداری ADC) را در نرم‌افزار پیاده‌سازی کنید.'
+        },
+        {
+            title: 'تثبیت ولتاژ مرجع ADC و ایزولاسیون گاند',
+            desc: 'در صورت نوسان مقادیر کالیبره شده در مانیتورینگ سریال، ریپل پایه Vref میکروکنترلر را با یک خازن تانتالیوم ۱۰۰ نانوفاراد موازی با زمین خنثی کنید. همچنین آنالوگ گاند (AGND) را با یک فریت بید (Ferrite Bead) از DGND جدا کنید تا نویز سوییچینگ موتورها حذف شود.'
+        }
+    ]
+},
+
+line_motor_fault: {
+    title: '🔄 عیب‌یابی سیستم پیشران و پاسخ گشتاور (مسیریاب)',
+    solution: true,
+    steps: [
+        {
+            title: 'بررسی افت ولتاژ پله (Surge Transient Drop)',
+            desc: 'هنگام تغییر مسیرهای ناگهانی یا ورود به پیچ‌های تند، جریان کششی موتورها به شدت بالا می‌رود. اسیلوسکوپ را روی خط تغذیه قرار دهید؛ اگر افت ولتاژ ناگهانی بیش از ۰.۸ ولت رخ می‌دهد، مقاومت داخلی باتری بالا رفته است. از باتری‌هایی با نرخ تخلیه بالاتر (حداقل 35C) استفاده کنید.'
+        },
+        {
+            title: 'حذف رزونانس مکانیکی و نویز فرکانس سوئیچینگ PWM',
+            desc: 'اگر موتورها لرزش شدیدی شبیه به پدیده چترینگ (Chattering) دارند، فرکانس تایمر تولیدکننده موج PWM را بررسی کنید. فرکانس‌های زیر ۲ کیلوهرتز باعث رزونانس هوم مکانیکی می‌شوند. فرکانس سوییچینگ درایور (مانند TB6612FNG) را به محدوده ۱۶ الی ۲۰ کیلوهرتز (خارج از آستانه شنوایی و اینرسی روتور) منتقل کنید.'
+        },
+        {
+            title: 'اعمال فاکتور جبران ناحیه مرده موتور (Dead-band Compensation)',
+            desc: 'به دلیل اینرسی و افت ولتاژ هدایت دیودهای درایور، موتورها تا یک چرخه‌کاری (Duty Cycle) مشخص (مثلاً ۱۵٪) شروع به حرکت نمی‌کنند. در کدهای خود یک مقدار آفست ثابت به فرمول نگاشت خروجی اضافه کنید تا سیگنال کنترلی هیچ‌گاه در محدوده مرده ولتاژ نوسان نکند.'
+        }
+    ]
+},
+
+line_pid_fault: {
+    title: '🎛️ تحلیل پایداری و تنظیم ضرایب حلقه بسته PID (مسیریاب)',
+    solution: true,
+    steps: [
+        {
+            title: 'مهار پدیده اشباع انتگرالگیر (Integral Windup Solution)',
+            desc: 'اگر ربات پس از رد کردن خطاهای بزرگ، دچار اورشوت (Overshoot) بسیار شدید شده و نوسان واگرا پیدا می‌کند، ترم انتگرال (Ki) دچار اشباع شده است. یک محدودکننده سخت‌افزاری پلتفرم یا شرط لغو (Anti-Windup Clamping) به این صورت در کد قرار دهید: if(integral > maxLimit) integral = maxLimit;'
+        },
+        {
+            title: 'اصلاح عدم تعادل بین بهره تناسبی و میراکننده (Kp / Kd)',
+            desc: 'اگر ربات روی خط مستقیم نوسان دامنه‌دار دارد، ضریب تناسبی Kp بیش از حد بزرگ است. مقدار Kp را به صورت پله‌های ۳۰ درصدی کاهش داده و به جای آن ضریب مشتق‌گیر Kd را با احتیاط افزایش دهید تا سیستم به حالت پاسخ بحرانی (Critically Damped) نزدیک شود.'
+        },
+        {
+            title: 'بهینه‌سازی نرخ فرکانس نمونه‌برداری سیستم (Sampling Time)',
+            desc: 'محاسبات PID نباید درون حلقه‌های دارای تابع تاخیر (Delay) اجرا شوند. زمان تناوب نمونه‌برداری (Ts) را با استفاده از Interrupt تایمرهای داخلی میکروکنترلر روی مقدار ثابت ۲ میلی‌ثانیه (فرکانس ۵۰۰ هرتز) قفل کنید تا پایداری تحلیلی سیستم در فضای فرکانسی حفظ شود.'
+        }
+    ]
+}
+    ,
+
+    'drone_flight_dynamics': {
+        title: '🚁 تحلیل دینامیک پرواز و ارتعاشات (Flight Dynamics & PID)',
+        solution: true,
+        steps: [
+            {
+                title: 'تحلیل طیف فرکانسی (Bode Plot / FFT)',
+                desc: 'فایل‌های Blackbox را باز کنید. اگر پیک‌های نویز در فرکانس‌های زیر 100Hz در محور Roll/Pitch دیده می‌شود، ضریب D بیش از حد بالاست یا فیلتر Low-Pass روی D-Term به درستی تنظیم نشده است.'
+            },
+            {
+                title: 'پدیده Propwash و نوسانات فرکانس پایین',
+                desc: 'اگر هنگام کاهش ارتفاع (نزول عمودی) ربات دچار لرزش شدید می‌شود، به دلیل قرارگیری در گردابه هوای خود (Vortex Ring State) است. افزایش D-Term در حد مجاز و فعال‌سازی قابلیت D-Min در نرم‌افزار این اثر را میرا می‌کند.'
+            },
+            {
+                title: 'اورشوت (Overshoot) پس از مانور پله',
+                desc: 'اگر پرنده پس از توقف چرخش، از زاویه هدف رد شده و برمی‌گردد (Bounce Back)، بهره مشتق‌گیر (Kd) پایین است یا باند فیدفوروارد (Feedforward Transition) نیاز به کالیبراسیون دارد. بهره FF را تا مرز کاهش خطای ماندگار افزایش دهید.'
+            }
+        ]
+    },
+
+    'drone_propulsion': {
+        title: '🌀 عیب‌یابی سیستم پیشران و پدیده Desync',
+        solution: true,
+        steps: [
+            {
+                title: 'خطای عدم همگام‌سازی (Desync)',
+                desc: 'اگر پرنده در مانورهای سریع ناگهان یک موتور را از دست داده و سقوط می‌کند، زاویه آوانس (Motor Timing) در تنظیمات BLHeli را افزایش دهید (مثلاً از Auto به 23 درجه) و فرکانس PWM را روی 48KHz تثبیت کنید.'
+            },
+            {
+                title: 'پدیده Demag Compensation و اشباع هسته',
+                desc: 'اگر موتورهای با KV بالا در ولتاژهای بالا (مثل 6S) استفاده می‌شوند، اشباع مغناطیسی هسته استاتور رخ می‌دهد. قابلیت Demag Compensation را در ESC روی High قرار دهید.'
+            },
+            {
+                title: 'سوختگی فاز موتور ناشی از Active Braking',
+                desc: 'در سیستم‌های Damped Light (ترمز فعال)، انرژی برگشتی (Back-EMF) به شدت بالاست. اگر دیودهای فلای‌بک ماسفت‌ها در ESC آسیب دیده باشند، جریان نشتی باعث سوختن سیم‌پیچ می‌شود. مقاومت فاز به فاز را با میلی‌اهم‌متر صنعتی بسنجید.'
+            }
+        ]
+    },
+
+    'drone_power_avionics': {
+        title: '⚡ عیب‌یابی اویونیک و نویزهای تله‌متری',
+        solution: true,
+        steps: [
+            {
+                title: 'نشت نویز سوییچینگ به گذرگاه SPI / I2C',
+                desc: 'نویزهای فرکانس بالای تولید شده توسط ESC می‌توانند روی باس ارتباطی ژیروسکوپ سوار شوند. خازن‌های دی‌کاپلینگ (0.1uF SMD) روی پایه‌های تغذیه ژیروسکوپ را بررسی کرده و برد FC را با دامپرهای سیلیکونی (Soft Mount) ایزوله مکانیکی کنید.'
+            },
+            {
+                title: 'ریپل ولتاژ خروجی رگولاتور BEC 5V',
+                desc: 'خاموش شدن ناگهانی گیرنده رادیویی (Brownout) ناشی از افت ولتاژ BEC تحت بار لحظه‌ای است. با استفاده از اسیلوسکوپ در حالت AC Coupling، ریپل خط ۵ ولت را بسنجید. ریپل بالای 200mV نیازمند اضافه کردن خازن الکترولیت Low ESR موازی با ورودی است.'
+            },
+            {
+                title: 'حلقه زمین (Ground Loop) در سیستم ویدیو',
+                desc: 'وجود خطوط نویز افقی همگام با گاز دادن (Throttle) در تصویر ارسالی، ناشی از ایجاد حلقه زمین بین دوربین، VTX و سیستم OSD است. تمام گراندها (GND) سیستم تصویر را به یک نقطه مشترک (Star Topology) متصل کنید.'
+            }
+        ]
+    }
+    , // ویرگول جداکننده گره قبلی
+
+    'drone_flight_dynamics': {
+        title: '🎛️ ۱. تحلیل دینامیک پرواز و ارتعاشات (PID Loop)',
+        solution: true,
+        next_node: 'drone_propulsion',
+        steps: [
+            { title: 'تحلیل طیف فرکانسی (Bode Plot / FFT)', desc: 'فایل‌های لوگ Blackbox پرواز را باز کنید. اگر پیک‌های نویز شدید در فرکانس‌های زیر 100Hz در محورهای Roll/Pitch مشاهده می‌شود، ضریب D بیش از حد بالاست و باید فیلتر Low-Pass روی D-Term بازتنظیم شود.' },
+            { title: 'پدیده Propwash و نوسانات فرکانس پایین', desc: 'اگر هنگام کاهش ارتفاع عمودی پرنده دچار لرزش شدید می‌شود، به دلیل قرارگیری در گردابه هوای خود (Vortex Ring State) است. برای میرا کردن این اثر، بهره مشتق‌گیر را به صورت پویا ارتقا دهید.' }
+        ]
+    },
+
+    'drone_propulsion': {
+        title: '🌀 ۲. عیب‌یابی سیستم پیشران و پدیده Desync موتورها',
+        solution: true,
+        next_node: 'drone_power_avionics',
+        steps: [
+            { title: 'خطای عدم همگام‌سازی لبه سوئیچینگ (Desync)', desc: 'اگر پرنده در مانورهای سریع ناگهان یکی از موتورها را از دست داده و سقوط می‌کند، زاویه آوانس (Motor Timing) را در تنظیمات ESC افزایش داده (مثلاً روی ۲۳ درجه) و فرکانس PWM را روی 48KHz تثبیت کنید.' },
+            { title: 'پدیده Demag Compensation و اشباع هسته', desc: 'اگر موتورهای با KV بالا در ولتاژهای نامی بالا (مثل 6S) استفاده می‌شوند، اشباع مغناطیسی هسته استاتور رخ می‌دهد. قابلیت Demag Compensation را در درایور روی حالت High تنظیم کنید.' }
+        ]
+    },
+
+    'drone_power_avionics': {
+        title: '⚡ ۳. عیب‌یابی اویونیک و نویزهای فرکانس بالا روی باس تغذیه',
+        solution: true,
+        next_node: 'drone_navigation',
+        steps: [
+            { title: 'نشت نویز سوییچینگ به گذرگاه SPI / I2C', desc: 'نویزهای سوئیچینگ فرکانس بالای تولید شده توسط درایورها روی باس ارتباطی ژیروسکوپ سوار می‌شوند. خازن‌های دی‌کاپلینگ ۰.۱ میکروفاراد SMD را روی پایه‌های تغذیه ژیروسکوپ بررسی کرده و برد کنترلر را با دامپرهای سیلیکونی ایزوله مکانیکی کنید.' },
+            { title: 'ریپل ولتاژ خروجی رگولاتور رادیو و مانیتورینگ تله‌متری', desc: 'خاموش شدن ناگهانی گیرنده رادیویی (Brownout) ناشی از افت ولتاژ تحت بار لحظه‌ای است. ریپل خط ۵ ولت را با اسیلوسکوپ بسنجید. ریپل بالای 200mV نیازمند اضافه کردن خازن الکترولیت Low ESR موازی با ورودی است.' }
+        ]
+    },
+
+    'drone_navigation': {
+        title: '🗺️ ۴. ماژول ناوبری (GPS/GNSS) و انحراف مغناطیسی',
+        solution: true,
+        next_node: 'drone_imu_filters',
+        steps: [
+            { title: 'خطای عدم قفل موقعیت (GPS Fix Error)', desc: 'میزان لایه‌های حفاظتی EMI روی کابل رابط ماژول ناوبری را بررسی کنید. امواج فرکانس بالا فرستنده ویدئویی (VTX) باند جی‌پی‌اس را به شدت تضعیف می‌کنند. استفاده از فویل آلومینیوم متصل به گراند روی کابل دیتا الزامی است.' },
+            { title: 'انحراف شدید یاو (Toilet Bowl Effect)', desc: 'این پدیده ناشی از کالیبره نبودن یا تداخل مغناطیسی قطب‌نما با سیم‌های جریان بالای باتری است. ماژول قطب‌نما را حداقل ۵ سانتی‌متر بالاتر از سطح فیبر PDB و بر روی دکل آنتن نصب کنید.' }
+        ]
+    },
+
+    'drone_imu_filters': {
+        title: '📊 ۵. سنسورهای اینرسی (IMU) و فیلترهای کلمن ضد نویز',
+        solution: true,
+        next_node: 'drone_telemetry',
+        steps: [
+            { title: 'اشباع سنسور شتاب‌سنج بر اثر لرزش مکانیکی شاسی', desc: 'لرزش‌های فرکانس بالای ملخ‌های نابالانس باعث اشباع رنج اندازه‌گیری شتاب‌سنج (Acc Saturation) می‌شود. شاسی را از نظر سختی ساختاری بررسی کرده و ملخ‌ها را با بالانسر مغناطیسی کالیبره کنید.' },
+            { title: 'خطای افست حرارتی ژیروسکوپ (Thermal Drift)', desc: 'تغییرات دمایی محیط کارکرد چیپ IMU را مختل می‌کند. پروتکل کالیبراسیون حرارتی پیش‌فرض را در سورس‌کد فعال کنید تا مقادیر افست خروجی بر اساس منحنی تغییرات دما به صورت خودکار جبران‌سازی شوند.' }
+        ]
+    },
+
+    'drone_telemetry': {
+        title: '📻 ۶. لینک ارتباط رادیویی و پدیده کرش Failsafe',
+        solution: true,
+        next_node: 'drone_optical_flow',
+        steps: [
+            { title: 'افت شدید شاخص کیفیت سیگنال (LQ / RSSI)', desc: 'پلاریزاسیون آنتن گیرنده رادیویی را نسبت به فرستنده بررسی کنید. آنتن‌های گیرنده روی کوادکوپتر باید دقیقاً با زاویه ۹۰ درجه نسبت به یکدیگر و کاملاً دور از بازوهای کربنی قرار گیرند تا اثر قفس فارادی خنثی شود.' },
+            { title: 'تاخیر بحرانی در پردازش پکت‌های کنترلی (Packet Rate Drop)', desc: 'فرکانس سوئیچینگ لینک رادیویی ExpressLRS را هماهنگ با پهنای باند پاسخ درایور تنظیم کنید. در محیط‌های شهری پر نویز، نرخ پکت‌ها را از 500Hz به 150Hz کاهش دهید تا حساسیت گیرنده ارتقا یابد.' }
+        ]
+    },
+
+    'drone_optical_flow': {
+        title: '👁️ ۷. سیستم بینایی هوشمند و سنجش ارتفاع لیدار',
+        solution: true,
+        next_node: 'drone_payload_gimbal',
+        steps: [
+            { title: 'خطای عدم پایداری موقعیت هوابرد بدون ماتریس GNSS', desc: 'سنسور دید پایین (Optical Flow) برای محاسبه بردار جابجایی نیاز به بافت نوری مشخص دارد. میزان لوکس نور محیط و لنز سنسور را تمیز کنید. حداقل فرکانس رندر فریم سنسور باید بالای ۶۰ هرتز باشد.' },
+            { title: 'خطای بازتابش امواج لیدار سنجش ارتفاع', desc: 'ماژول سنجش ارتفاع LiDAR (مانند VL53L1X) بر روی سطوح جاذب نور یا آب دچار خطای محاسباتی جدی می‌شود. آستانه فیلتر تخمین وضعیت پلتفرم (Kalman Filter State) را برای سوئیچ روی سنسور بارومتریک بازنویسی کنید.' }
+        ]
+    },
+
+    'drone_payload_gimbal': {
+        title: '🎥 ۸. پایدارساز مکانیکی دوربین (Gimbal) و انکودرها',
+        solution: true,
+        next_node: 'unresolved_standard',
+        steps: [
+            { title: 'نوسانات ریز تصویر ناشی از لرزش موتورهای براشلس گیمبال', desc: 'این خطا نشان‌دهنده بالا بودن بیش از حد بهره تناسبی در حلقه کنترل خود گیمبال است. جریان مصرفی موتورهای گیمبال را چک کرده و زوایای قطب‌ها (Pole Count) را با مشخصات استاتور موتور گیمبال تطبیق دهید.' },
+            { title: 'انحراف زاویه‌ای خط افق (Horizon Drift)', desc: 'خطای تراز نبودن افق ناشی از عدم هم‌راستایی فیزیکی IMU داخلی گیمبال با دوربین است. دوربین را کاملاً بالانس مکانیکی کرده و سپس فرآیند کالیبراسیون ۶ جهته IMU گیمبال را روی سطح کاملاً تراز اجرا کنید.' }
+        ]
+    },
+
+    'unresolved_standard': {
+        title: '⚠️ مشکل با روش‌های استاندارد حل نشد',
+        solution: true,
+        next_node: 'start', // پس از این صفحه، مجدد به منوی اصلی برمی‌گردد
+        steps: [
+            { title: 'ارجاع سیستم به پروتکل‌های آزمایشگاهی سطح پیشرفته', desc: 'متأسفانه خطا با روش‌های کالیبراسیون الکترونیکی، بررسی‌های استاندارد هوانوردی و بازتنظیم نرم‌افزاری برطرف نشد. سیستم باید جهت تست سخت‌افزاری عمیق‌تر، آنالیز لایه به لایه برد PCB با اسیلوسکوپ فرکانس بالا، و بازبینی سورس‌کد لایه HAL کنترلر پرواز به آزمایشگاه مرجع رباتیک ارجاع داده شود.' }
+        ]
+    }
+    ,
+    // ۱. منوی انتخاب مشکل چرخ‌ها
+    'warrior_wheels': {
+        title: 'عیب‌یابی سیستم حرکتی و چرخ‌ها',
+        hint: 'دقیقاً چه اتفاقی برای چرخ‌ها افتاده است؟',
+        options: [
+            { text: 'چرخ گشتاور واقعی ندارد و زیر بار متوقف می‌شود', next: 'warrior_wheels_torque_standard' }
+        ]
+    },
+
+    // ۲. راهکارهای استاندارد (گام اول)
+    'warrior_wheels_torque_standard': {
+        title: '📉 عیب‌یابی گشتاور چرخ‌ها (راهکارهای استاندارد)',
+        solution: true,
+        nextExtendedNode: 'warrior_wheels_torque_advanced', // 👈 با زدن دکمه میره مرحله پیشرفته
+        steps: [
+            { title: 'تست مکانیکی گیربکس', desc: 'شفت موتور را فیکس نگه دارید و چرخ را با دست بچرخانید. اگر چرخ بیش از ۵ درجه آزادانه حرکت کرد، چرخ‌دنده‌های داخلی خرد شده یا پین اتصال هاب هرز شده است.' },
+            { title: 'کالیبراسیون درایور (ESC)', desc: 'محدودکننده جریان (Current Limit) در تنظیمات درایور موتور را چک کنید تا روی حداکثر مقدار ایمن کالیبره شده باشد.' }
+        ]
+    },
+
+    'warrior_wheels_torque_advanced': {
+        title: '🚀 عیب‌یابی گشتاور چرخ‌ها (تکنیک‌های پیشرفته)',
+        solution: true,
+        steps: [
+            { title: 'افزایش فرکانس موج PWM', desc: 'فرکانس سوئیچینگ خروجی درایور را به ۳۲ کیلوهرتز افزایش دهید تا ریپل جریان کاهش یافته و گشتاور استاتیک موتور در درگیری‌ها تقویت شود.' },
+            { title: 'بررسی دِمانیتيزه شدن (Demagnetization)', desc: 'اگر موتور قبلا به شدت داغ شده، آهنرباهای نئودیمیوم خاصیت خود را از دست داده‌اند. در این حالت جریان مصرفی بالاست ولی گشتاور صفر است و موتور باید تعویض شود.' }
+        ]
+    }
+    ,
+    // ==========================================
+    // ۱. سیستم حرکتی و چرخ‌ها
+    // ==========================================
+    'warrior_wheels': {
+        title: 'عیب‌یابی سیستم حرکتی و چرخ‌ها',
+        hint: 'دقیقاً چه اتفاقی برای چرخ‌ها افتاده است؟',
+        options: [
+            { text: 'چرخ گشتاور واقعی ندارد و زیر بار متوقف می‌شود', next: 'warrior_wheels_torque_standard' }
+        ]
+    },
+    'warrior_wheels_torque_standard': {
+        title: '📉 گشتاور چرخ‌ها (راهکارهای استاندارد)',
+        solution: true,
+        nextExtendedNode: 'warrior_wheels_torque_advanced',
+        steps: [
+            { title: 'تست مکانیکی گیربکس', desc: 'شفت موتور را فیکس نگه دارید و چرخ را بچرخانید. اگر بیش از ۵ درجه آزادانه حرکت کرد، چرخ‌دنده‌های داخلی یا پین هاب هرز شده است.' },
+            { title: 'کالیبراسیون درایور (ESC)', desc: 'محدودکننده جریان (Current Limit) در تنظیمات درایور موتور را چک کنید تا روی حداکثر مقدار ایمن کالیبره شده باشد.' }
+        ]
+    },
+    'warrior_wheels_torque_advanced': {
+        title: '🚀 گشتاور چرخ‌ها (تکنیک‌های پیشرفته)',
+        solution: true,
+        steps: [
+            { title: 'افزایش فرکانس موج PWM', desc: 'فرکانس سوئیچینگ خروجی درایور را به ۳۲ کیلوهرتز افزایش دهید تا ریپل جریان کاهش یافته و گشتاور تقویت شود.' },
+            { title: 'بررسی دِمانیتيزه شدن (Demagnetization)', desc: 'اگر موتور قبلا داغ شده، آهنرباهای نئودیمیوم خاصیت خود را از دست داده‌اند. جریان بالاست ولی گشتاور صفر است؛ موتور باید تعویض شود.' }
+        ]
+    },
+
+    // ==========================================
+    // ۲. سیستم سلاح دورانی
+    // ==========================================
+    'warrior_weapon': {
+        title: 'عیب‌یابی سلاح دورانی (اسپینر/دیسک)',
+        hint: 'مشکل سلاح در چه وضعیتی رخ می‌دهد؟',
+        options: [
+            { text: 'سلاح استارت نمی‌خورد یا هنگام شتاب‌گیری درایور ریست می‌شود', next: 'warrior_weapon_spool_standard' }
+        ]
+    },
+    'warrior_weapon_spool_standard': {
+        title: '💿 شتاب‌گیری سلاح (راهکارهای استاندارد)',
+        solution: true,
+        nextExtendedNode: 'warrior_weapon_spool_advanced',
+        steps: [
+            { title: 'افزایش زمان Ramp-up Time', desc: 'اینرسی دیسک بالاست. پارامتر Start-up Power را کاهش و زمان شتاب‌گیری را به ۴ الی ۶ ثانیه افزایش دهید تا از اورجریان جلوگیری شود.' },
+            { title: 'بررسی گیرپاژ مکانیکی', desc: 'دیسک را با دست بچرخانید. مطمئن شوید بلبرینگ‌ها تحت فشار شاسی کج نشده باشند و سلاح کاملاً روان باشد.' }
+        ]
+    },
+    'warrior_weapon_spool_advanced': {
+        title: '🧠 شتاب‌گیری سلاح (تکنیک‌های پیشرفته)',
+        solution: true,
+        steps: [
+            { title: 'فعال‌سازی Demag Compensation', desc: 'برای مهار جریان‌های برگشتی شدید فرکانسی (BEMF) ناشی از سلف موتور سلاح، گزینه حفاظت دِمَگ را در درایور فعال کنید.' },
+            { title: 'بانک خازنی Low-ESR', desc: 'یک بانک خازنی حداقل 4700uF به موازات ورودی برق درایور سلاح لحیم کنید تا پیک جریان استارت دمپ شود و افت ولتاژ درایور را ریست نکند.' }
+        ]
+    },
+
+    // ==========================================
+    // ۳. مدار قدرت و باتری
+    // ==========================================
+    'warrior_power': {
+        title: 'عیب‌یابی مدار قدرت و توزیع جریان',
+        hint: 'نشانه خرابی در سیستم برق چیست؟',
+        options: [
+            { text: 'قطعی ناگهانی برق ربات دقیقاً در لحظه برخورد (ضربه به حریف)', next: 'warrior_power_drop_standard' }
+        ]
+    },
+    'warrior_power_drop_standard': {
+        title: '⚡ قطعی برق در لحظه ضربه (راهکارهای استاندارد)',
+        solution: true,
+        nextExtendedNode: 'warrior_power_drop_advanced',
+        steps: [
+            { title: 'بررسی کانکتورهای XT90 / XT60', desc: 'پین‌های داخلی کانکتورهای باتری را با یک پیچ‌گوشتی کوچک کمی باز کنید تا اتصال سفت‌تر شود. شل بودن کانکتور در لحظه ضربه باعث قطعی میلی‌ثانیه‌ای می‌شود.' },
+            { title: 'محکم‌سازی باتری لیپو', desc: 'مطمئن شوید باتری با فوم‌های EVA به طور کامل در محفظه خود فیکس شده و بر اثر ضربه درون شاسی پرتاب نمی‌شود.' }
+        ]
+    },
+    'warrior_power_drop_advanced': {
+        title: '🔋 قطعی برق در لحظه ضربه (تکنیک‌های پیشرفته)',
+        solution: true,
+        steps: [
+            { title: 'تست سوئیچ اصلی (Removable Link)', desc: 'اگر از لینک مسی یا سوئیچ‌های جریان بالا استفاده می‌کنید، قلع‌مردگی پایه‌های آن را بررسی کنید. ضربه‌های G بالا باعث شکستن لحیم‌های سرد در پایه‌های ضخیم می‌شود.' },
+            { title: 'میکروترک‌های داخلی باتری', desc: 'ممکن است اتصالات نقطه‌جوش داخلی سلول‌های لیپو (زیر روکش حرارتی) بر اثر ضربات قبلی ترک خورده باشد. باتری را تحت لود کامل تکان دهید تا از سلامت داخلی آن مطمئن شوید.' }
+        ]
+    },
+
+    // ==========================================
+    // ۴. لینک رادیویی و نویز
+    // ==========================================
+    'warrior_radio': {
+        title: 'عیب‌یابی لینک رادیویی و گیرنده',
+        hint: 'مشکل سیستم کنترلی ربات چیست؟',
+        options: [
+            { text: 'فعال شدن ناگهانی Fail-Safe یا تاخیر شدید در کنترل هنگام روشن شدن سلاح', next: 'warrior_radio_noise_standard' }
+        ]
+    },
+    'warrior_radio_noise_standard': {
+        title: '📻 تداخل رادیویی (راهکارهای استاندارد)',
+        solution: true,
+        nextExtendedNode: 'warrior_radio_noise_advanced',
+        steps: [
+            { title: 'فاصله‌گذاری فیزیکی', desc: 'گیرنده رادیویی (Receiver) را تا حد امکان از درایورها و موتورهای براش/براشلس دور کنید. سیم آنتن نباید از روی کابل‌های ضخیم جریان بالا عبور کند.' },
+            { title: 'تأمین ولتاژ پایدار گیرنده', desc: 'مطمئن شوید ولتاژ ورودی گیرنده روی ۵ الی ۶ ولت ثابت است. افت ولتاژ مقطعی باعث ریبوت شدن گیرنده و رفتن به حالت Fail-Safe می‌شود.' }
+        ]
+    },
+    'warrior_radio_noise_advanced': {
+        title: '📡 تداخل رادیویی (تکنیک‌های پیشرفته)',
+        solution: true,
+        steps: [
+            { title: 'ایزولاسیون با شیلد فارادی (EMI Shielding)', desc: 'بدنه پلاستیکی گیرنده را با چسب فویل مسی یا آلومینیومی بپوشانید و فویل را به Ground (منفی اصلی) متصل کنید تا نویزهای الکترومغناطیسی دفع شوند.' },
+            { title: 'حلقه زمین (Ground Loop) و BEC مجزا', desc: 'اگر از BEC داخلی درایورها استفاده می‌کنید، آن را قطع کرده و از یک UBEC خارجی ایزوله برای تغذیه گیرنده استفاده کنید. حتماً سیم‌های سیگنال را به دور حلقه‌های فریت (Ferrite Ring) بپیچید.' }
+        ]
+    },
+    // === درخت عیب‌یابی خط‌دنبال‌کن حرفه‌ای (PCB) ===
+    lp_power: {
+        title: '🔴 عیب‌یابی مدار تغذیه (PCB Power)',
+        solution: true,
+        steps: [
+            { title: 'بررسی LED پاور و اتصال کوتاه', desc: 'قبل از روشن کردن، بین VCC و GND را با مولتی‌متر تست بوق بگیرید. اگر بوق زد، اتصال کوتاه در لحیم‌کاری دارید.' },
+            { title: 'خازن‌های Buck Converter', desc: 'اگر ولتاژ خروجی نوسان دارد، خازن‌های الکترولیتی خروجی رگولاتور ظرفیت کافی ندارند یا ESR بالایی دارند (استفاده از خازن ۴۷۰µF + 10µF سرامیک ضروری است).' },
+            { title: 'پلاریته قطعات', desc: 'اگر PCB پس از روشن شدن دود کرد، باتری را فورا قطع کنید. دلیل اصلی برعکس زدن باتری یا نصب برعکس خازن الکترولیتی/آی‌سی درایور است.' }
+        ]
+    },
+    lp_sensor: {
+        title: '🟡 خطای خوانش سنسور و نویز آنالوگ',
+        solution: true,
+        steps: [
+            { title: 'تست LEDهای فرستنده', desc: 'با دوربین موبایل نگاه کنید؛ همه فرستنده‌های IR باید روشن (بنفش رنگ) باشند. اگر یکی خاموش است، مقاومت بایاس یا لحیم آن مشکل دارد.' },
+            { title: 'خازن فیلتر (Anti-Debounce)', desc: 'اگر اعداد سنسور در سریال مانیتور پرش دارند، یک خازن ۱۰ نانوفاراد بین خروجی آنالوگ هر سنسور و GND قرار دهید.' },
+            { title: 'کالیبراسیون دینامیک', desc: 'کد باید مقادیر مینیمم (روی خط سیاه) و ماکزیمم (روی سفید) را در ابتدای روشن شدن بخواند و با فرمول Normalize آن‌ها را بین ۰ تا ۱۰۰۰ مپ کند.' }
+        ]
+    },
+    lp_motor: {
+        title: '🟠 مشکلات موتور و خطای انکودر',
+        solution: true,
+        steps: [
+            { title: 'جهت چرخش و اتصالات IN1/IN2', desc: 'اگر موتور برعکس می‌چرخد، نیاز به تغییر سیم‌کشی نیست؛ فقط در کد وضعیت پین‌های IN1 و IN2 را جابجا کنید.' },
+            { title: 'خطای خوانش انکودر', desc: 'انکودرها نیاز به مقاومت Pull-up (۱۰ کیلواهم) به ۳.۳ ولت دارند. بدون این مقاومت، سیگنال شناور شده و اعداد تصادفی شمرده می‌شوند.' },
+            { title: 'استفاده از Timer Encoder Mode', desc: 'در STM32 برای خواندن انکودر از وقفه (Interrupt) ساده استفاده نکنید؛ از قابلیت سخت‌افزاری Timer Encoder Mode استفاده کنید تا هیچ پالسی از دست نرود.' }
+        ]
+    },
+    lp_pid: {
+        title: '🔵 ناپایداری PID روی خط و پیچ‌ها',
+        solution: true,
+        steps: [
+            { title: 'نوسان سریع چپ و راست روی خط صاف', desc: 'ضریب تناسبی (Kp) بیش از حد بزرگ است. آن را نصف کنید و ضریب مشتقی (Kd) را افزایش دهید.' },
+            { title: 'خروج از خط در پیچ‌های تند', desc: 'ربات با سرعت بالا وارد پیچ می‌شود. از الگوریتم Adaptive Speed استفاده کنید تا سرعت پایه (Base Speed) با افزایش مقدار خطا، کاهش یابد.' },
+            { title: 'تثبیت فرکانس حلقه (Loop Rate)', desc: 'محاسبات PID باید دقیقاً در فواصل زمانی ثابت (مثلاً ۱ میلی‌ثانیه) انجام شود. از Timer Interrupt برای اجرای تابع PID استفاده کنید.' }
+        ]
+    },
+    lp_soldering: {
+        title: '⚡ خطاهای لحیم‌کاری SMD و ST-Link',
+        solution: true,
+        steps: [
+            { title: 'ارور No Target Connected در ST-Link', desc: 'بررسی کنید که پین‌های SWDIO و SWCLK جابجا وصل نشده باشند. همچنین پین Boot0 باید در مدار با یک مقاومت پول‌داون به زمین متصل باشد.' },
+            { title: 'لحیم سرد (Cold Joint)', desc: 'اگر ربات با ضربه ریست می‌شود، اتصال پایه‌های کریستال اسیلاتور یا پین‌های تغذیه میکروکنترلر به درستی به پد PCB ذوب نشده است.' }
+        ]
+    },
+
+    // === درخت عیب‌یابی بازوی رباتیک نسخه پرو ===
+    arm_power: {
+        title: '⚡ مشکلات برق، لرزش و Jitter سرووها',
+        solution: true,
+        steps: [
+            { title: 'لرزش همزمان تمامی سرووها در استارت', desc: 'منبع تغذیه جریان کافی (آمپر) برای تأمین پیک راه‌اندازی ندارد. از یک پاور سوئیچینگ ۵ یا ۶ ولت با حداقل جریان ۲ آمپر به ازای هر سروو + خازن ۲۲۰۰ میکروفاراد استفاده کنید.' },
+            { title: 'لرزش فرکانس بالا در یک مفصل', desc: 'نویز روی خط سیگنال PWM است. یک خازن ۱۰۰ نانوفاراد بین پین سیگنال و GND همان موتور قرار دهید.' },
+            { title: 'داغ شدن شدید و قطع شدن (Thermal Shutdown)', desc: 'بار مکانیکی روی بازو بیشتر از گشتاور استال (Stall Torque) سروو است. در برنامه‌نویسی قابلیت Gravity Compensation (جبران گرانش) را با محاسبات سینماتیک لحاظ کنید.' }
+        ]
+    },
+    arm_movement: {
+        title: '🔧 خطای موقعیت‌دهی، Singularity و سینماتیک',
+        solution: true,
+        steps: [
+            { title: 'حرکت جهشی، پرشی و خطرناک', desc: 'بازو وارد حالت تکینگی (Singularity) شده است. در کد سینماتیک معکوس (IK)، اگر دترمینان ژاکوبین صفر شد، باید مسیر حرکت (Path Planning) تغییر کند.' },
+            { title: 'حرکت خشن بین دو نقطه (عدم پیوستگی)', desc: 'به جای تغییر ناگهانی زوایا، از پروفایل سرعت ذوزنقه‌ای (Trapezoidal Velocity Profile) شامل شتاب‌گیری، سرعت ثابت و ترمز ملایم استفاده کنید.' },
+            { title: 'خطای ثابت در رسیدن به مختصات (Offset)', desc: 'کالیبراسیون سخت‌افزاری Home Position انجام نشده است. بازو را در وضعیت صفر مکانیکی قرار داده و زوایای پایه را در حافظه EEPROM ذخیره کنید.' }
+        ]
+    },
+    arm_thermal: {
+        title: '🌡️ مشکلات حرارتی و صدای غیرعادی گیربکس',
+        solution: true,
+        steps: [
+            { title: 'صدای کلیک-کلیک از داخل موتور', desc: 'حداقل یکی از چرخ‌دنده‌های (Gear) داخل گیربکس سروو خرد شده است. موتور باز شود و چرخ‌دنده فلزی جایگزین گردد.' },
+            { title: 'صدای الکتریکی (Buzz) مداوم در حالت توقف', desc: 'موتور دقیقاً در ناحیه مرده (Dead-Band) قرار نگرفته و مدام در حال تلاش برای اصلاح خطای میلی‌متری است. در سرووهای دیجیتال مقدار Dead-band را افزایش دهید.' },
+            { title: 'افت گشتاور مفصل شانه (Base)', desc: 'مفصل شانه بیشترین فشار را تحمل می‌کند. برای این مفصل از مکانیزم چرخ‌دنده حلزونی (Worm Gear) استفاده کنید که خاصیت قفل‌شوندگی خودکار (Self-Locking) دارد.' }
+        ]
+    },
+    arm_comms: {
+        title: '📡 قطعی ارتباط سریال و تأخیر در کنترل',
+        solution: true,
+        steps: [
+            { title: 'عدم پاسخ‌دهی موتورهای شبکه (مانند Dynamixel)', desc: 'احتمال تداخل آدرس (ID Conflict). با نرم‌افزار مربوطه شبکه را اسکن کرده و مطمئن شوید هیچ دو موتوری ID یکسان ندارند.' },
+            { title: 'تأخیر (Latency) در اجرای دستورات از PC', desc: 'بافر سریال پر شده است. در برنامه‌نویسی میکروکنترلر از بافرینگ FIFO استفاده کنید و Baud Rate را روی ۱۱۵۲۰۰ یا بالاتر تنظیم نمایید.' }
+        ]
+    }
+};
+
+
+let tsHistory = [];
+
+function initTroubleshoot() {
+    tsHistory = [];
+    renderTSNode('start');
+}
+
+function resetTroubleshoot() {
+    initTroubleshoot();
+}
+
+function renderTSNode(nodeId) {
+    const node = tsTree[nodeId];
+    if (!node) return;
+    tsHistory.push(nodeId);
+    updateBreadcrumb();
+    const content = document.getElementById('tsContent');
+
+    if (node.solution) {
+        let stepsHTML = node.steps.map((s, i) => `
+            <div class="solution-step">
+                <div class="step-num">${i+1}</div>
+                <div class="step-body">
+                    <div class="step-title">${s.title}</div>
+                    <div class="step-desc">${s.desc}</div>
+                </div>
+            </div>
+        `).join('');
+        content.innerHTML = `
+            <div class="ts-node">
+                <div class="ts-node-title">${node.title}</div>
+                ${node.desc ? `<div class="ts-node-desc">${node.desc}</div>` : ''}
+                <div class="solution-steps">${stepsHTML}</div>
+                <div style="margin-top:20px;display:flex;gap:10px;">
+                    <button class="btn btn-success btn-sm" onclick="markSolved()">✅ مشکل حل شد</button> <button class="btn btn-warning" onclick="${node.nextExtendedNode ? `renderTSNode('${node.nextExtendedNode}')` : 'markUnsolved()'}" style="background:#ffc107;color:#333;border:none">❌ مشکل حل نشد</button>
+
+                    <button class="btn btn-outline btn-sm" onclick="goBack()">← برگشت</button>
+                    <button class="btn btn-outline btn-sm" onclick="resetTroubleshoot()">🔄 شروع مجدد</button>
+                </div>
+            </div>
+        `;
+    } else {
+        let optionsHTML = node.options.map(opt => `
+            <div class="ts-option" onclick="renderTSNode('${opt.next}')">
+                <span class="opt-icon">🔹</span>
+                <div class="opt-text">
+                    <div style="font-weight:600;">${opt.text}</div>
+                </div>
+                <span class="opt-arrow">←</span>
+            </div>
+        `).join('');
+        content.innerHTML = `
+            <div class="ts-node">
+                <div class="ts-node-title">${node.title}</div>
+                <div class="ts-node-desc">${node.desc}</div>
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">${optionsHTML}</div>
+                ${tsHistory.length > 1 ? `<button class="btn btn-outline btn-sm" style="margin-top:16px;width:fit-content;" onclick="goBack()">← برگشت</button>` : ''}
+            </div>
+        `;
+    }
+}
+
+function goBack() {
+    if (tsHistory.length > 1) {
+        tsHistory.pop();
+        const prev = tsHistory.pop();
+        renderTSNode(prev);
+    }
+}
+
+function saveToHistory(nodeId, solved, robotName = null, problem = null) {
+    try {
+        let sessions = JSON.parse(localStorage.getItem('ts_sessions') || '[]');
+        if (!Array.isArray(sessions)) sessions = [];
+
+        let title = 'نامشخص';
+        if (tsTree && tsTree[nodeId] && tsTree[nodeId].title) {
+            title = tsTree[nodeId].title;
+        }
+
+        if (!robotName) {
+            robotName = title.split('—')[0].trim();
+        }
+        if (!problem) {
+            problem = title.split('—')[1]?.trim() || title;
+        }
+
+        // ۳. ذخیره اطلاعات جدید
+        sessions.unshift({
+            id: Date.now(),
+            nodeId,
+            title,
+            robotName: robotName, // ذخیره نام ربات
+            problem: problem,     // ذخیره مشکل
+            solved: !!solved,
+            timestamp: new Date().toISOString(),
+            icon: getIconForNode(nodeId) // آیکون مربوط به دسته‌بندی
+        });
+
+        // نگه داشتن فقط ۲۰ جلسه آخر
+        sessions = sessions.slice(0, 20);
+        localStorage.setItem('ts_sessions', JSON.stringify(sessions));
+    } catch(e) { console.error(e); }
+}
+
+
+function loadHistory() {
+    const container = document.getElementById('recent-sessions-list');
+    if (!container) return;
+    let sessions = [];
+    try {
+        sessions = JSON.parse(localStorage.getItem('ts_sessions') || '[]');
+        if (!Array.isArray(sessions)) sessions = [];
+    } catch(e) { sessions = []; }
+
+    if (sessions.length === 0) {
+        container.innerHTML = '<p style="color:#888;text-align:center;">هنوز هیچ جلسه‌ای ثبت نشده.</p>';
+        return;
+    }
+    container.innerHTML = sessions.map(s => {
+        let t = '';
+        try { t = new Date(s.timestamp).toLocaleString('fa-IR'); } catch { t = ''; }
+        return `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #eee;">
+                <div>
+                    <div style="font-weight:600;">${s.title || 'نامشخص'}</div>
+                    <div style="font-size:12px;color:#888;">${t}</div>
+                </div>
+                <span style="padding:4px 10px;border-radius:20px;font-size:12px;background:${s.solved ? '#d4edda' : '#f8d7da'};color:${s.solved ? '#155724' : '#721c24'};">
+                    ${s.solved ? '✅ حل شد' : '❌ حل نشد'}
+                </span>
+            </div>`;
+    }).join('');
+}
+
+
+function markSolved() {
+    const lastNode = tsHistory[tsHistory.length - 1];
+    saveToHistory(lastNode, true);
+    document.getElementById('tsContent').innerHTML = `
+        <div style="text-align:center;padding:40px">
+            <div style="font-size:60px">🎉</div>
+            <h2 style="color:#28a745;margin:16px 0">مشکل حل شد!</h2>
+            <p style="color:#666">خوشحالیم که توانستیم کمک کنیم.</p>
+            <p style="color:#888;font-size:13px">✅ جلسه در تاریخچه ذخیره شد</p>
+            <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                <button class="btn btn-primary" onclick="resetTroubleshoot()">🔄 شروع مجدد</button>
+                <button class="btn btn-secondary" onclick="showPage('history')">📋 مشاهده تاریخچه</button>
+            </div>
+        </div>`;
+}
+
+function markUnsolved() {
+    const lastNode = tsHistory[tsHistory.length - 1];
+    saveToHistory(lastNode, false);
+
+    const node = tsTree[lastNode];
+    const nodeTitle = node ? node.title : 'نامشخص';
+
+    // راهکارهای تخصصی بر اساس نوع مشکل
+    const advancedTips = {
+        power_low: [
+            '🔬 با مولتی‌متر ولتاژ هر سل LiPo را جداگانه اندازه بگیرید (هر سل باید بین ۳.۷ تا ۴.۲V باشد)',
+            '📊 جریان مصرفی کل مدار را با آمپرمتر سری اندازه بگیرید',
+            '🔌 مقاومت داخلی باتری را با ESR meter بسنجید (بالای ۱۵۰mΩ = باتری فرسوده)',
+            '⚡ افت ولتاژ روی کانکتورها و سیم‌ها را زیر بار چک کنید',
+            '🛡️ بررسی کنید BMS (Battery Management System) فعال است یا خیر'
+        ],
+        power_nostart: [
+            '🔍 با اسیلوسکوپ یا مولتی‌متر خروجی رگولاتور (LM7805/LM2596) را زیر بار تست کنید',
+            '📋 توالی راه‌اندازی (Power Sequencing) برد را بررسی کنید',
+            '🔌 ولتاژ روی پین VCC میکروکنترلر را مستقیم اندازه بگیرید',
+            '💡 با LED و مقاومت ۳۳۰Ω هر شاخه برق را جداگانه تست کنید',
+            '🧪 خازن‌های فیلتر نزدیک IC را با ESR meter بررسی کنید'
+        ],
+        power_drain: [
+            '📊 با کلمپ‌متر جریان هر زیرسیستم را جداگانه اندازه بگیرید',
+            '🌡️ دمای موتورها و درایورها را زیر بار با ترموگان بررسی کنید',
+            '⚙️ بار مکانیکی روی موتورها را کاهش دهید و جریان را مقایسه کنید',
+            '🔋 ظرفیت واقعی باتری را با Battery Analyzer بسنجید',
+            '📉 لاگ جریان مصرفی را در طول زمان ثبت کنید (Current Logger)'
+        ],
+        motor_dc_dead: [
+            '🔬 مقاومت سیم‌پیچ موتور را با اهم‌متر بسنجید (اتصال کوتاه یا قطعی)',
+            '📡 سیگنال PWM را با اسیلوسکوپ روی پین Enable درایور تأیید کنید',
+            '⚡ ولتاژ خروجی درایور (OUT1/OUT2) را زیر بار اندازه بگیرید',
+            '🌡️ دمای IC درایور را بررسی کنید (بالای ۸۵°C = اورهیت)',
+            '🔌 جاروبک‌های موتور را بازرسی کنید و در صورت فرسودگی تعویض کنید'
+        ],
+        motor_dc_slow: [
+            '📊 Duty Cycle PWM را با اسیلوسکوپ تأیید کنید (باید بالای ۷۰٪ باشد)',
+            '⚡ افت ولتاژ روی درایور را اندازه بگیرید (بیشتر از ۱.۵V = مشکل)',
+            '⚙️ بار مکانیکی را با دینامومتر اندازه بگیرید',
+            '🔋 ولتاژ باتری را زیر بار کامل بررسی کنید',
+            '🌡️ گرمای بیش از حد موتور باعث کاهش گشتاور می‌شود'
+        ],
+        motor_dc_noise: [
+            '🔊 فرکانس PWM را به بالای ۲۰kHz ببرید تا از محدوده شنیداری خارج شود',
+            '🔩 لقی شفت را با دست بررسی کنید (بیشتر از ۰.۵mm = یاتاقان فرسوده)',
+            '🧲 جاروبک‌ها را بازرسی کنید (سایش ناهموار = ارتعاش)',
+            '⚙️ کوپلینگ بین موتور و گیربکس را بررسی کنید',
+            '📐 تراز بودن محور موتور با بار را چک کنید'
+        ],
+        motor_bldc: [
+            '📡 با اسیلوسکوپ سه فاز خروجی ESC را بررسی کنید (باید سینوسی/ذوزنقه‌ای باشد)',
+            '🔄 کالیبراسیون ESC را مجدداً انجام دهید (Full throttle → Zero throttle)',
+            '🌡️ دمای موتور را زیر بار بررسی کنید (بالای ۸۰°C = مشکل)',
+            '⚡ مقاومت هر فاز را با اهم‌متر دقیق بسنجید (باید یکسان باشند)',
+            '🔌 خازن‌های دی‌کاپلینگ روی ESC را بررسی کنید'
+        ],
+        motor_servo: [
+            '📡 پالس PWM را با اسیلوسکوپ بررسی کنید (۱ms تا ۲ms، دوره ۲۰ms)',
+            '⚡ تغذیه سروو را از میکروکنترلر جدا کنید (منبع ۵V/۶V مستقل)',
+            '🔩 گیربکس داخلی را بررسی کنید (صدای کلیک = دنده شکسته)',
+            '📊 جریان مصرفی سروو را زیر بار اندازه بگیرید',
+            '🔄 Dead Band سروو را در کد تنظیم کنید'
+        ],
+        sensor_ir: [
+            '📷 با دوربین موبایل LED مادون قرمز را ببینید (دوربین IR می‌بیند)',
+            '📊 خروجی آنالوگ سنسور را با اسیلوسکوپ روی سطوح مختلف بررسی کنید',
+            '🔆 پتانسیومتر تنظیم آستانه را کالیبره کنید',
+            '🌞 نور محیط (خصوصاً نور خورشید) می‌تواند سنسور IR را کور کند',
+            '📐 زاویه و ارتفاع نصب را بهینه کنید (معمولاً ۱-۳cm از سطح)'
+        ],
+        sensor_ultrasonic: [
+            '⏱️ تایمینگ Trigger را دقیقاً ۱۰μs نگه دارید (با اسیلوسکوپ تأیید کنید)',
+            '📡 در محیط‌های پر سروصدا از فیلتر میانگین‌گیری استفاده کنید',
+            '🌡️ دمای محیط روی سرعت صوت تأثیر دارد — فرمول را تصحیح کنید',
+            '🔌 خازن ۱۰۰μF موازی با تغذیه سنسور قرار دهید',
+            '📐 سطوح نرم و زاویه‌دار سیگنال را جذب می‌کنند'
+        ]
+    };
+
+    const tips = advancedTips[lastNode] || [
+        '🔬 مدار را با اسیلوسکوپ و مولتی‌متر دیجیتال بررسی کنید',
+        '📋 لاگ سریال را فعال کنید و مقادیر سنسورها را در زمان واقعی بررسی کنید',
+        '🔌 هر ماژول را جداگانه و خارج از مدار اصلی تست کنید',
+        '⚡ نویز روی خطوط برق را با خازن‌های دی‌کاپلینگ کاهش دهید',
+        '🌡️ دمای قطعات را زیر بار با ترموگان بررسی کنید'
+    ];
+
+    const tipsHTML = tips.map(t => `<li style="padding:6px 0;border-bottom:1px solid #eee">${t}</li>`).join('');
+
+    document.getElementById('tsContent').innerHTML = `
+        <div style="background:#1e1e2e;border-radius:14px;padding:24px;color:#cdd6f4">
+            <div style="background:#2a1f1f;border-right:4px solid #f38ba8;padding:16px;border-radius:10px;margin-bottom:20px">
+                <h3 style="color:#f38ba8;margin:0 0 6px">⚠️ مشکل با روش‌های استاندارد حل نشد</h3>
+                <p style="color:#a6adc8;margin:0;font-size:14px">مشکل: ${nodeTitle}</p>
+            </div>
+
+            <h4 style="color:#89b4fa;margin-bottom:12px">🔬 راهکارهای تخصص:</h4>
+            <ul style="list-style:none;padding:0;margin:0 0 20px">
+                ${tipsHTML}
+            </ul>
+
+            <div style="background:#2a2a3e;border-radius:10px;padding:16px;margin-bottom:20px">
+                <p style="color:#a6e3a1;margin:0 0 8px;font-weight:bold">📞 نیاز به کمک بیشتر دارید؟</p>
+                <p style="color:#cdd6f4;margin:0;font-size:14px">
+                   در صورت ادامه مشکل با ما در ارتباط باشید : <br>
+                    <a href="id:@rezaforgex" style="color:#89dceb;text-decoration:none;font-weight:bold">
+                         id: @rezaforgex 📧
+                    </a>
+                </p>
+            </div>
+
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" onclick="goBack()">↩️ برگشت و امتحان مجدد</button>
+                <button class="btn btn-secondary btn-sm" onclick="resetTroubleshoot()">🔄 شروع از ابتدا</button>
+                <button class="btn btn-secondary btn-sm" onclick="showPage('history')">📋 مشاهده تاریخچه</button>
+            </div>
+        </div>
+    `;
+}
+
+
+
+function updateBreadcrumb() {
+      const names = {
+        'start':'شروع','power':'برق','motor':'موتور','sensor':'سنسور',
+        'controller':'کنترلر','flight':'پرواز','wireless':'بی‌سیم',
+        'power_low':'ولتاژ پایین','power_nostart':'روشن نمی‌شود','power_drain':'تخلیه سریع',
+        'motor_dc':'موتور DC','motor_bldc':'براشلس','motor_servo':'سروو',
+        'motor_dc_dead':'نمی‌چرخد','motor_dc_slow':'کند','motor_dc_noise':'صدای غیرعادی',
+        'sensor_ir':'سنسور IR','sensor_ultrasonic':'اولتراسونیک','sensor_imu':'IMU',
+        'ctrl_upload':'آپلود','ctrl_crash':'کرش','ctrl_delay':'تأخیر',
+        'flight_oscillate':'نوسان','flight_drift':'انحراف','flight_flip':'flip',
+        'gearbox':'گیربکس','gearbox_noise':'صدای گیربکس','gearbox_oil':'نشتی روغن',
+        'gearbox_stuck':'گیر کردن','gearbox_backlash':'لقی',
+        'encoder':'انکودر','encoder_dead':'انکودر کار نمی‌کند','encoder_noise':'نویز انکودر',
+        'encoder_direction':'جهت اشتباه','encoder_miss':'از دست رفتن پالس',
+        'pid':'PID','pid_oscillate':'نوسان PID','pid_slow':'کند','pid_overshoot':'overshoot','pid_steady':'خطای ماندگار',
+        'comm':'ارتباطات','comm_i2c':'I2C','comm_spi':'SPI','comm_uart':'UART','comm_wireless':'بی‌سیم',
+        'power_management':'مدیریت توان','pm_reset':'ریست ناگهانی','pm_heat':'گرمای زیاد','pm_drop':'افت ولتاژ'
+    };
+
+    const bc = document.getElementById('tsBreadcrumb');
+    bc.innerHTML = tsHistory.map((id,i) =>
+        `<span class="bc-item ${i===tsHistory.length-1?'active':''}">${names[id]||id}</span>`
+    ).join('<span style="color:var(--text2);margin:0 4px;">›</span>');
+}
+
+function startTroubleshoot(type) {
+    showPage('troubleshoot');
+    if(type === 'symptom') renderTSNode('start');
+    else if(type === 'robot') renderTSNode('start');
+    else if(type === 'component') renderTSNode('start');
+}
+
+// ===== ROBOT DETAIL =====
+const robotDetails = {
+
+  'line': {
+        name: 'ربات مسیریاب پیشرفته (Line Follower)',
+        icon: '🏎️',
+        specs: [
+            ['پردازنده مرکزی', 'STM32F405 ARM Cortex-M4 (168MHz)'],
+            ['آرایه سنسورها', '8-Channel Infrared Array (QTR-8A) + ADC خارجی'],
+            ['درایور موتور', 'Dual H-Bridge MOSFET Driver (TB6612FNG)'],
+            ['مکانیزم کنترلر', 'Digital PID Controller with Anti-Windup Loop'],
+            ['تغذیه سیستم', 'Li-Po 2S 7.4V 2200mAh (25C)']
+        ],
+        subsystems: [
+            { name: 'کالیبراسیون و خطای پردازش آرایه مادون قرمز (IR)', issues: ['line_sensor_fault'] },
+            { name: 'پاسخ پله، نوسان شدید و اشباع درایور موتورها', issues: ['line_motor_fault'] },
+            { name: 'ناپایداری پاسخ سیستم و واگرایی ضرایب PID', issues: ['line_pid_fault'] }
+        ],
+        howItWorks: [
+    'آرایه سنسورهای مادون قرمز مقادیر آنالوگ بازتابش کف را دریافت کرده و توسط مبدل آنالوگ به دیجیتال (ADC) به مقادیر گسسته بین ۰ تا ۱۰۰۰ تبدیل می‌کنند.',
+    'موقعیت دقیق ربات نسبت به خط مرکزی بر اساس فرمول میانگین وزنی و سهم خروجی هر کانال محاسبه می‌شود.',
+    'خطای لحظه‌ای وارد بلوک کنترلر PID شده و سیگنال تصحیح خروجی بر اساس پاسخ فرکانسی ضرایب Kp، Ki و Kd برای موتورهای چپ و راست اعمال می‌گردد.',
+    'سیستم به صورت موج PWM فرکانس بالا (20kHz) گیت‌های ماسفت درایور موتور را سوئیچ‌زنی می‌کند تا از ایجاد نویز و تلفات حرارتی جلوگیری شود.'
+],
+        commonMistakes: [
+            'انتخاب نامناسب ضرایب کنترلر بدون در نظر گرفتن زمان نمونه‌برداری ($T_s$) که منجر به پدیده چترنیگ (Chattering) یا نوسان شدید سینوسی روی خط می‌شود.',
+            'عدم کالیبراسیون سنسورها در شرایط نوری محیط (تداخل نور مادون قرمز محیطی یا نورهای فلورسنت که فرکانس کاری سنسور را مختل می‌کنند).',
+            'عدم استفاده از خازن‌های صافی دکوپلاژ (Decoupling) در مسیر تغذیه درایور که نویز برگشتی سوییچینگ موتور (Back-EMF) را روی میکروکنترلر می‌اندازد و باعث Reset شدن ناگهانی هاب پردازشی می‌شود.'
+        ]
+    },
+    linepro: {
+        name: 'خط‌دنبال‌کن حرفه‌ای — PCB-Level Pro',
+        icon: '🏁',
+        specs: [
+            ['میکروکنترلر', 'STM32F4 / F1 (یا AVR pro)'],
+            ['سنسور آرایه', 'TCRT5000 × 8 یا QTR-8RC'],
+            ['موتور', 'DC Gear 150-300 RPM'],
+            ['انکودر', 'Quadrature Encoder (PPR≥200)'],
+            ['درایور موتور', 'TB6612FNG / DRV8833'],
+            ['باتری', 'LiPo 2S (7.4V) — 1500mAh+']
+        ],
+        subsystems: [
+            { name: 'مشکلات تغذیه و روشن نشدن مدار PCB', issues: ['lp_power'] },
+            { name: 'خطاهای خوانش سنسور و نویز آنالوگ', issues: ['lp_sensor'] },
+            { name: 'مشکلات موتور، درایور و خطای انکودر', issues: ['lp_motor'] },
+            { name: 'ناپایداری PID روی خط و پیچ‌ها', issues: ['lp_pid'] },
+            { name: 'خطاهای لحیم‌کاری SMD و پروگرام نشدن', issues: ['lp_soldering'] }
+        ],
+        howItWorks: [
+            'این ربات بر خلاف نسخه‌های ماژولار، دارای یک برد مدار چاپی (PCB) یکپارچه است که تمام قطعات روی آن مونتاژ شده‌اند.',
+            'استفاده از پلن GND پیوسته در طراحی برد، نویز موتورها را از میکروکنترلر جدا می‌کند.',
+            'سیستم PID با استفاده از تایمرهای سخت‌افزاری و DMA برای خواندن سنسورها با فرکانس بالای ۱۰۰۰ هرتز اجرا می‌شود.'
+        ],
+        commonMistakes: [
+            'استفاده از Trace (مسیر مسی) باریک برای خطوط تغذیه موتورها که منجر به ذوب شدن یا افت ولتاژ شدید می‌شود.',
+            'فراموش کردن اتصال پین Boot0 به زمین (GND) که مانع از اجرای برنامه پس از ریست می‌شود.',
+            'عدم استفاده از خازن‌های دی‌کاپلینگ (100nF) در مجاورت پین‌های تغذیه میکروکنترلر.'
+        ]
+    },
+    drone: {
+        name: 'کوادکوپتر (UAV Quadrotor)',
+        icon: '🚁',
+        specs: [
+            ['پردازنده پرواز (FC)', 'STM32F722 MCU @ 216MHz + Dual ICM20602 Gyro'],
+            ['سیستم پیشران (ESC)', '32-bit ARM BLHeli_32, DSHOT600, Active Braking'],
+            ['موتورها (Stator)', '2207 - 2400KV, N52H Arc Magnets, Titanium Shaft'],
+            ['فیلترهای نرم‌افزاری', 'RPM Filter (Bi-Directional DSHOT) + Dynamic Notch'],
+            ['باند فرکانسی لینک', 'ExpressLRS (ELRS) 2.4GHz / 915MHz SX1280'],
+            ['سیستم ناوبری', 'Ublox M10 GPS + QMC5883L Digital Compass'],
+            ['سنسورهای پایداری', 'PMW3901 Optical Flow + VL53L1X LiDAR'],
+            ['تغذیه و توان', 'Li-Po 4S-6S 1300mAh 120C High Discharge Rate']
+        ],
+        subsystems: [
+            { name: '۱. دینامیک پرواز و نوسانات حلقه بسته (PID)', issues: ['drone_flight_dynamics'] },
+            { name: '۲. سیستم پیشران، کرش موتور و پدیده Desync', issues: ['drone_propulsion'] },
+            { name: '۳. اویونیک، مدیریت توان و ریپل نویز تغذیه', issues: ['drone_power_avionics'] },
+            { name: '۴. ماژول ناوبری (GPS/GNSS) و انحراف مغناطیسی قطب‌نما', issues: ['drone_navigation'] },
+            { name: '۵. سنسورهای اینرسی (IMU) و فیلترهای کلمن ضد نویز', issues: ['drone_imu_filters'] },
+            { name: '۶. لینک رادیویی کنترلر (RC Link) و پدیده Failsafe', issues: ['drone_telemetry'] },
+            { name: '۷. سیستم بینایی هوشمند (Optical Flow) و سنجش ارتفاع لیدار', issues: ['drone_optical_flow'] },
+            { name: '۸. پایدارساز مکانیکی دوربین (Gimbal) و بازخورد انکودرها', issues: ['drone_payload_gimbal'] }
+        ],
+        howItWorks: [
+            'سیستم کنترل پرواز بر اساس معادلات سینماتیک جسم صلب و زوایای اویلر (Roll, Pitch, Yaw) جهت پایداری زاویه‌ای مداوم کار می‌کند.',
+            'برای جلوگیری از پدیده قفل مفصلی در مانورهای سریع، محاسبات فضایی ماتریکس پرواز با استفاده از کواترنیون‌ها (Quaternions) انجام می‌شود.',
+            'حلقه کنترل آبشاری (Cascade Control Loop) شامل دو لایه کنترلر P برای زاویه و کنترلر PID کامل برای نرخ زاویه‌ای در فرکانس 8KHz پردازش می‌شود.',
+            'اطلاعات وضعیت سنسورها پس از فیلتراسیون با ماتریس زمان‌بندی نمونه‌برداری به سیگنال‌های دیجیتال DSHOT جهت کنترل دقیق دور موتورها تبدیل می‌گردد.'
+        ],
+        commonMistakes: [
+            'عدم نصب خازن الکترولیت Low ESR موازی در ورودی PDB که باعث سوختن رگولاتورهای حساس اویونیک بر اثر ولتاژ Back-EMF موتورها می‌شود.',
+            'تداخل مغناطیسی شدید ناشی از عبور سیم‌های جریان بالای کشیده شده از نزدیکی چیپ قطب‌نما (Magnetometer) که موجب خطای واگرایی یاو می‌شود.',
+            'تنظیم نادرست ضرایب فیلترهای نوتش پویا (Dynamic Notch Filters) که فرکانس رزونانس ملخ‌ها را وارد حلقه D-term کرده و سبب سوختن موتورها می‌گردد.'
+        ]
+    },
+
+    arm: {
+        name: 'بازوی رباتیک پیشرفته — Robotic Arm Pro',
+        icon: '🦾',
+        specs: [
+            ['درجه آزادی (DOF)', '۴ تا ۶ درجه (بسته به طراحی)'],
+            ['موتور مفصل', 'Servo MG996R یا Dynamixel / Herkulex'],
+            ['کنترلر مرکزی', 'STM32 / Arduino MEGA + PCA9685'],
+            ['تغذیه قدرت', 'پاور مستقل ۵ تا ۶ ولت (حداقل ۱۰ آمپر)'],
+            ['سینماتیک', 'پشتیبانی از Inverse Kinematics (IK)'],
+            ['دقت تکرارپذیری', '±0.1mm تا ±1mm']
+        ],
+        subsystems: [
+            { name: 'مشکلات برق، لرزش و Jitter سرووها', issues: ['arm_power'] },
+            { name: 'خطای موقعیت‌دهی، Singularity و سینماتیک', issues: ['arm_movement'] },
+            { name: 'مشکلات حرارتی و صدای غیرعادی گیربکس', issues: ['arm_thermal'] },
+            { name: 'قطعی ارتباط سریال و تأخیر در کنترل', issues: ['arm_comms'] }
+        ],
+        howItWorks: [
+            'سینماتیک مستقیم (Forward Kinematics): محاسبه موقعیت نوک بازو از زاویه مفاصل با استفاده از ماتریس‌های تبدیل همگن.',
+            'سینماتیک معکوس (Inverse Kinematics): محاسبه زاویه مفاصل از موقعیت سه‌بعدی هدف با استفاده از معادلات هندسی و ماتریس ژاکوبین.',
+            'برای حرکت نرم و بدون آسیب به چرخ‌دنده‌ها، از پروفایل سرعت ذوزنقه‌ای (Trapezoidal Velocity Profile) استفاده می‌شود.'
+        ],
+        commonMistakes: [
+            'تغذیه سرووها مستقیماً از برد آردوینو یا رزبری‌پای که باعث ریست شدن کنترلر به دلیل افت ولتاژ ناگهانی می‌شود.',
+            'عدم محاسبه گشتاور مورد نیاز مفاصل پایه؛ بار مکانیکی بیش از ۱۳kg.cm روی سروو MG996R باعث سوختن سریع آن می‌شود.',
+            'رسیدن بازو به حالت تکینگی (Singularity) که باعث حرکات جهشی، سریع و غیرقابل کنترل می‌شود.'
+        ]
+    },
+
+  combat: {
+        name: 'ربات جنگجو (مسابقاتی)',
+        icon: '⚔️',
+        specs: [
+            ['سیستم پیشران', 'Dual Brushed DC Motors'],
+            ['درایور قدرت', 'Sabertooth / VESC'],
+            ['منبع انرژی', 'Li-Po 6S (100C Burst)'],
+            ['سیستم سلاح', 'دیسک فولادی Hardox']
+        ],
+        subsystems: [
+            { name: '۱. سیستم حرکتی و گشتاور چرخ‌ها', issues: ['warrior_wheels'] },
+            { name: '۲. سیستم سلاح دورانی (اسپینر/دیسک)', issues: ['warrior_weapon'] },
+            { name: '۳. مدار قدرت، باتری و قطعی برق', issues: ['warrior_power'] },
+            { name: '۴. لینک رادیویی و تداخل فرکانسی (نویز)', issues: ['warrior_radio'] }
+        ],
+        howItWorks: [
+            'سیستم بر مبنای انتقال بیشترین گشتاور مکانیکی به چرخ‌ها برای هل دادن ربات حریف طراحی شده است.',
+            'درایورهای قدرت جریان‌های هجومی فراتر از ۱۰۰ آمپر را در لحظات قفل شدن موتورها مدیریت می‌کنند.'
+        ],
+        commonMistakes: [
+            'عدم ایزولاسیون مکانیکی شاسی از ضربات سلاح که باعث تَرَک خوردن بردهای الکترونیکی داخلی می‌شود.',
+            'مسیرکشی اشتباه سیم‌های موتور سلاح از کنار گیرنده رادیویی که باعث ایجاد نویز شدید (EMI) می‌شود.'
+        ]
+    },
+    balance: {
+        name:'ربات تعادل‌دهنده', icon:'⚖️',
+        subsystems:[
+            { name:'IMU / ژیروسکوپ', issues:['sensor_imu'] },
+            { name:'موتور DC', issues:['motor_dc'] },
+            { name:'کنترلر', issues:['controller'] },
+            { name:'سیستم برق', issues:['power'] }
+        ],
+        specs:[
+            ['سنسور','MPU-6050'],
+            ['موتور','DC Gear Motor با انکودر'],
+            ['درایور','L298N / TB6612'],
+            ['کنترلر','Arduino UNO'],
+            ['الگوریتم','PID + Complementary Filter']
+        ]
+    },
+    humanoid: {
+        name:'ربات هیومانوید', icon:'🧍',
+        subsystems:[
+            { name:'سروو موتور', issues:['motor_servo'] },
+            { name:'IMU', issues:['sensor_imu'] },
+            { name:'کنترلر', issues:['controller'] },
+            { name:'سیستم برق', issues:['power'] }
+        ],
+        specs:[
+            ['سروو','MG90S / MG996R'],
+            ['کنترلر','Arduino MEGA / Raspberry Pi'],
+            ['تعداد مفاصل','16-20 DOF'],
+            ['باتری','LiPo 3S'],
+            ['ارتباط','USB / Bluetooth']
+        ]
+    }
+};
+
+function showRobotDetail(id) {
+    const robot = robotDetails[id];
+    if (!robot) return;
+
+    // نمایش بخش جزییات و مخفی کردن گرید اصلی
+    document.getElementById('robot-detail-view').style.display = 'block';
+    if (document.querySelector('.robots-grid')) document.querySelector('.robots-grid').style.display = 'none';
+    if (document.querySelector('.filter-bar')) document.querySelector('.filter-bar').style.display = 'none';
+
+    // ۱. استخراج مشخصات فنی
+    let specsHTML = '';
+    if (robot.specs) {
+        specsHTML = robot.specs.map(s => `<tr><th>${s[0]}</th><td>${s[1]}</td></tr>`).join('');
+    }
+
+    // ۲. استخراج زیرسیستم‌های عیب‌یابی
+    let subsHTML = '';
+    if (robot.subsystems) {
+        subsHTML = robot.subsystems.map(sub => `
+            <div class="ts-option" onclick="startRobotTroubleshoot('${sub.issues[0]}')">
+                <span class="opt-icon">🔧</span>
+                <div class="opt-text"><div style="font-weight:600;">${sub.name}</div></div>
+                <span class="opt-arrow">←</span>
+            </div>
+        `).join('');
+    }
+
+    // ۳. استخراج نحوه کار
+    let howHTML = '';
+    if (robot.howItWorks && robot.howItWorks.length) {
+        let steps = robot.howItWorks.map((step, i) => `
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span style="background:var(--accent);color:#fff;border-radius:50%;width:24px;height:24px;
+                      display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">
+                    ${i + 1}
+                </span>
+                <span style="font-size:14px;line-height:1.6;">${step}</span>
+            </div>
+        `).join('');
+        howHTML = `
+            <div class="card" style="margin-top:16px;">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <div class="card-title">نحوه کار</div>
+                </div>
+                <div style="display:flex;flex-direction:column;">${steps}</div>
+            </div>
+        `;
+    }
+
+    // ۴. استخراج اشتباهات رایج
+    let mistakesHTML = '';
+    if (robot.commonMistakes && robot.commonMistakes.length) {
+        let items = robot.commonMistakes.map(m => `
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span style="color:#e74c3c;font-size:16px;flex-shrink:0;">⚠️</span>
+                <span style="font-size:14px;line-height:1.6;">${m}</span>
+            </div>
+        `).join('');
+        mistakesHTML = `
+            <div class="card" style="margin-top:16px;">
+                <div class="card-header">
+                    <span class="card-icon">⚠️</span>
+                    <div class="card-title">اشتباهات رایج</div>
+                </div>
+                <div style="display:flex;flex-direction:column;">${items}</div>
+            </div>
+        `;
+    }
+
+    // تزریق نهایی الگو به DOM
+    const detailContent = document.getElementById('robot-detail-content');
+    if (detailContent) {
+        detailContent.innerHTML = `
+            <div class="detail-header">
+                <button class="btn btn-outline btn-sm" onclick="backToRobots()" style="margin-bottom: 15px;">← بازگشت</button>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span style="font-size:48px;">${robot.icon || '🤖'}</span>
+                    <h2 style="margin:8px 0 4px;">${robot.name}</h2>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📋</span>
+                        <div class="card-title">مشخصات فنی</div>
+                    </div>
+                    <table class="specs-table"><tbody>${specsHTML}</tbody></table>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔧</span>
+                        <div class="card-title">عیب‌یابی بر اساس زیرسیستم</div>
+                    </div>
+                    <div class="ts-options">${subsHTML}</div>
+                </div>
+            </div>
+
+            ${howHTML}
+            ${mistakesHTML}
+        `;
+    }
+}
+
+function startRobotTroubleshoot(nodeId) {
+    showPage('troubleshoot');
+    tsHistory = [];
+    renderTSNode(nodeId);
+}
+
+function backToRobots() {
+    document.getElementById('robot-detail-view').style.display = 'none';
+    document.querySelector('.robots-grid') && (document.querySelector('.robots-grid').style.display='');
+    document.querySelector('.filter-bar') && (document.querySelector('.filter-bar').style.display='');
+}
+
+// ===== COMPONENT DETAIL =====
+const compDetails = {
+    dcmotor: {
+        name:'موتور DC', icon:'⚡',
+        specs:[
+            ['ولتاژ کاری','6 تا 24 ولت'],
+            ['جریان بی‌باری','100-300 mA'],
+            ['جریان استال','2-10 A'],
+            ['نوع','Brushed DC'],
+            ['درایور مناسب','L298N, TB6612, MOSFET H-Bridge']
+        ],
+        tips:['برای جلوگیری از spike ولتاژ، دیود fly-back موازی موتور وصل کنید','خازن 100nF بین پایه‌های موتور نویز را کاهش می‌دهد','جریان استال نباید بیش از 5 ثانیه ادامه یابد']
+    },
+    servo: {
+        name:'سروو موتور', icon:'🔄',
+        specs:[
+            ['ولتاژ','4.8 تا 6 ولت'],
+            ['سیگنال','PWM 50Hz'],
+            ['زاویه','0 تا 180 درجه'],
+            ['پالس','1000 تا 2000 میکروثانیه'],
+            ['جریان','500mA تا 2A تحت بار']
+        ],
+        tips:['تغذیه سروو را از آردوینو جدا کنید','سیم سیگنال را با خازن 100nF فیلتر کنید','از PCA9685 برای کنترل چند سروو استفاده کنید']
+    },
+    brushless: {
+        name:'موتور براشلس', icon:'🌀',
+        specs:[
+            ['نوع','BLDC - Outrunner/Inrunner'],
+            ['KV Rating','900 تا 2600 KV'],
+            ['ولتاژ','3S تا 6S LiPo'],
+            ['درایور','ESC (Electronic Speed Controller)'],
+            ['راندمان','85 تا 95 درصد']
+        ],
+        tips:['ESC را قبل از استفاده کالیبره کنید','برای تغییر جهت چرخش دو سیم از سه سیم را جابجا کنید','از ESC با BEC برای تغذیه گیرنده استفاده کنید']
+    },
+    ir: {
+        name:'سنسور IR', icon:'👁️',
+        specs:[
+            ['ولتاژ','3.3 تا 5 ولت'],
+            ['خروجی','دیجیتال و آنالوگ'],
+            ['برد','2 تا 30 سانتیمتر'],
+            ['تأثیر نور','حساس به نور محیط'],
+            ['تنظیم','پتانسیومتر آستانه']
+        ],
+        tips:['ارتفاع ایده‌آل از سطح: 1-3 سانتیمتر','با دوربین موبایل LED IR را ببینید','در نور فلورسنت شدید عملکرد کاهش می‌یابد']
+    },
+    ultrasonic: {
+        name:'HC-SR04', icon:'📡',
+        specs:[
+            ['ولتاژ','5 ولت'],
+            ['برد','2 تا 400 سانتیمتر'],
+            ['دقت','3 میلیمتر'],
+            ['زاویه','15 درجه'],
+            ['پین‌ها','Trig, Echo, VCC, GND']
+        ],
+        tips:['پالس Trigger حداقل 10 میکروثانیه باشد','timeout برای Echo در نظر بگیرید','سطوح نرم و زاویه‌دار بازتاب ضعیف دارند']
+    },
+    mpu: {
+        name:'MPU-6050', icon:'📐',
+        specs:[
+            ['پروتکل','I2C'],
+            ['ولتاژ','3.3 ولت (5V tolerant)'],
+            ['آدرس','0x68 یا 0x69'],
+            ['DOF','6 محور'],
+            ['خروجی','ژیروسکوپ + شتاب‌سنج']
+        ],
+        tips:['با I2C scanner آدرس را پیدا کنید','offset را روی سطح صاف کالیبره کنید','از foam ضد لرزش برای نصب استفاده کنید']
+    },
+    arduino: {
+        name:'آردوینو', icon:'🖥️',
+        specs:[
+            ['پردازنده','ATmega328P (UNO)'],
+            ['فرکانس','16 MHz'],
+            ['RAM','2 KB'],
+            ['Flash','32 KB'],
+            ['پین‌های دیجیتال','14 (6 PWM)']
+        ],
+        tips:['از F() macro برای string های ثابت استفاده کنید','Watchdog timer را برای سیستم‌های حیاتی فعال کنید','از EEPROM برای ذخیره تنظیمات استفاده کنید']
+    },
+    lipo: {
+        name:'باتری LiPo', icon:'🔋',
+        specs:[
+            ['ولتاژ per cell','3.7V nominal / 4.2V full'],
+            ['حداقل ولتاژ','3.5V per cell'],
+            ['نگهداری','3.8V per cell'],
+            ['C Rating','حداکثر جریان = C × Ah'],
+            ['شارژ','حداکثر 1C توصیه می‌شود']
+        ],
+        tips:['هرگز زیر 3.5V per cell نیاید','باتری باد کرده را فوراً دور بیندازید','در کیف ضد آتش نگهداری کنید']
+    },
+    hbridge: {
+        name:'L298N H-Bridge', icon:'🔌',
+        specs:[
+            ['ولتاژ موتور','5 تا 35 ولت'],
+            ['جریان هر کانال','2 آمپر (peak 3A)'],
+            ['تعداد کانال','2 موتور'],
+            ['افت ولتاژ','1.5 تا 2 ولت'],
+            ['هیت‌سینک','ضروری بالای 1A']
+        ],
+        tips:['برای جریان بالای 1.5A هیت‌سینک اجباری است','از MOSFET driver برای راندمان بهتر استفاده کنید','خازن 100uF روی ورودی برق وصل کنید']
+    },
+    esc: {
+        name:'ESC', icon:'⚡',
+        specs:[
+            ['پروتکل','PWM / DSHOT / OneShot'],
+            ['BEC','5V خروجی برای گیرنده'],
+            ['کالیبراسیون','throttle range تنظیم'],
+            ['Firmware','BLHeli / SimonK'],
+            ['محافظت','thermal / overcurrent']
+        ],
+        tips:['همیشه قبل از استفاده کالیبره کنید','Failsafe را روی throttle صفر تنظیم کنید','از ESC با آمپر بالاتر از حداکثر مصرف موتور استفاده کنید']
+    }
+};
+
+function showCompDetail(id) {
+    const comp = compDetails[id];
+    if (!comp) return;
+    let specsHTML = comp.specs.map(s => `<tr><th>${s[0]}</th><td>${s[1]}</td></tr>`).join('');
+    let tipsHTML = comp.tips.map(t => `<div class="alert alert-info" style="margin-bottom:8px;"><span>💡</span><div>${t}</div></div>`).join('');
+    document.getElementById('modalTitle').textContent = comp.icon + ' ' + comp.name;
+    document.getElementById('modalContent').innerHTML = `
+        <table class="specs-table" style="margin-bottom:16px;">${specsHTML}</table>
+        <div style="font-weight:600;margin-bottom:10px;color:var(--text);">نکات مهم:</div>
+        ${tipsHTML}
+    `;
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+// ===== CALCULATORS =====
+function calcBattery() {
+    const cap = parseFloat(document.getElementById('calc-capacity').value);
+    const cur = parseFloat(document.getElementById('calc-current').value);
+    if (cap && cur && cur > 0) {
+        const minutes = (cap / cur) * 60;
+        const safe = minutes * 0.8;
+        document.getElementById('calc-battery-result').style.display = 'flex';
+        document.getElementById('calc-battery-text').innerHTML =
+            `زمان کارکرد: <strong>${minutes.toFixed(1)} دقیقه</strong> | با 20% ذخیره ایمنی: <strong>${safe.toFixed(1)} دقیقه</strong>`;
+    }
+}
+
+function calcPower() {
+    const v = parseFloat(document.getElementById('calc-voltage').value);
+    const r = parseFloat(document.getElementById('calc-resistance').value);
+    if (v && r && r > 0) {
+        const i = v / r;
+        const p = v * i;
+        document.getElementById('calc-power-result').style.display = 'flex';
+        document.getElementById('calc-power-text').innerHTML =
+            `جریان: <strong>${i.toFixed(3)} A</strong> | توان: <strong>${p.toFixed(2)} W</strong>`;
+    }
+}
+
+function calcRPM() {
+    const kv = parseFloat(document.getElementById('calc-kv').value);
+    const v = parseFloat(document.getElementById('calc-volt').value);
+    if (kv && v) {
+        const rpm = kv * v;
+        document.getElementById('calc-rpm-result').style.display = 'flex';
+        document.getElementById('calc-rpm-text').innerHTML =
+            `حداکثر RPM: <strong>${Math.round(rpm).toLocaleString()} دور/دقیقه</strong>`;
+    }
+}
+
+function calcServo() {
+    const angle = parseInt(document.getElementById('calc-angle').value);
+    const pulse = 1000 + (angle / 180) * 1000;
+    const duty = (pulse / 20000) * 100;
+    document.getElementById('angle-display').textContent = angle + '°';
+    document.getElementById('calc-servo-text').innerHTML =
+        `پالس: <strong>${Math.round(pulse)} µs</strong> | Duty Cycle: <strong>${duty.toFixed(2)}%</strong>`;
+}
+
+// ===== HISTORY =====
+function loadHistory() {
+    const sessions = JSON.parse(localStorage.getItem('ts_sessions') || '[]');
+    const list = document.getElementById('historyList');
+    if (!list) return;
+    if (!sessions.length) {
+        list.innerHTML = '<p style="text-align:center;color:#888;padding:40px">تاریخچه‌ای وجود ندارد</p>';
+        return;
+    }
+    list.innerHTML = sessions.map(s => `
+        <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <strong>${s.title}</strong>
+                <div style="font-size:12px;color:#888;margin-top:4px">${s.date} — ${s.time}</div>
+            </div>
+            <span style="padding:4px 14px;border-radius:20px;font-size:12px;
+                background:${s.solved ? '#d4edda' : '#fff3cd'};
+                color:${s.solved ? '#155724' : '#856404'}">
+                ${s.solved ? '✅ حل شد' : '⚠️ حل نشد'}
+            </span>
+        </div>
+    `).join('');
+}
+
+function clearHistory() {
+    if (confirm('آیا از پاک کردن تاریخچه مطمئنید؟')) {
+        localStorage.removeItem('ts_sessions');
+        loadHistory();
+    }
+}
+
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+    showPage('dashboard');
+    calcServo();
+    loadHistory();
+});
+
+function loadRecentSessions() {
+    const list = document.getElementById('recent-sessions-list');
+    if (!list) return;
+
+    const sessions = JSON.parse(localStorage.getItem('ts_sessions') || '[]');
+
+    if (sessions.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1rem;">هنوز جلسه‌ای ثبت نشده</p>';
+        return;
+    }
+
+    // گرفتن ۵ جلسه آخر و برعکس کردن ترتیب (جدیدترین اول)
+    const recent = sessions.slice(-5).reverse();
+
+    list.innerHTML = recent.map(s => {
+        // ۱. اگر اطلاعات ذخیره شده نبود، از عنوان اصلی استخراج کن
+        const robotName = s.robotName || s.title.split('—')[0].trim() || 'نامشخص';
+        const problem = s.problem || s.title.split('—')[1]?.trim() || s.title;
+
+        // ۲. تبدیل زمان به فارسی
+        const time = new Date(s.timestamp).toLocaleTimeString('fa-IR');
+
+        // ۳. ساخت HTML لیست
+        return `
+        <div class="history-item" style="padding:12px;">
+            <span class="history-icon">${s.icon || getIconForNode(s.nodeId) || '🤖'}</span>
+            <div class="history-info">
+                <div class="history-title">${robotName} — ${problem}</div>
+                <div class="history-meta">${time} · ${s.section || ''}</div>
+            </div>
+            <span class="history-status ${s.solved ? 'status-solved' : 'status-pending'}">
+                ${s.solved ? 'حل شد' : 'حل نشد'}
+            </span>
+        </div>
+        `;
+    }).join('');
+}
+
+// تابع کمکی برای انتخاب آیکون بر اساس نوع مشکل
+function getIconForNode(nodeId) {
+    const icons = {
+        'power': '⚡', 'motor': '🔄', 'sensor': '📡', 'controller': '🖥️',
+        'flight': '🚁', 'wireless': '📻', 'gearbox': '⚙️', 'encoder': '📊',
+        'pid': '🎛️', 'comm': '🔌', 'power_management': '🔋'
+    };
+    // پیدا کردن دسته‌بندی اصلی (مثلاً از "motor_dc_dead" فقط "motor" رو می‌گیره)
+    const mainCategory = nodeId.split('_')[0];
+    return icons[mainCategory] || '🤖';
+}
+
+
+</script>
+</body>
+</html>
+<!DOCTYPE HTML>
+
+<html>
+
+<head>
+  <title>Untitled</title>
+</head>
+
+<body>
+
+</body>
+
+</html>
