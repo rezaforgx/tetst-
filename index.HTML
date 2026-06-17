@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="fa" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LineBot Pro — 3D Simulator v3.0</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&family=Vazirmatn:wght@300;400;600;700&display=swap');
+
+:root {
+    --bg: #050810;
+    --panel: rgba(8,14,28,0.95);
+    --border: rgba(0,200,255,0.18);
+    --cyan: #00d4ff;
+    --green: #00ff88;
+    --orange: #ff6b00;
+    --red: #ff2255;
+    --purple: #aa44ff;
+    --text: #c8e0f0;
+    --dim: #4a6880;
+    --glow: 0 0 12px rgba(0,212,255,0.5);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', 'Vazirmatn', sans-serif;
+    font-size: 13px;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+}
+
+body.rtl { direction: rtl; font-family: 'Vazirmatn', sans-serif; }
+
+/* ── WELCOME SCREEN ── */
+#welcome-overlay {
+    position: fixed; inset: 0;
+    z-index: 9999;
+    background: radial-gradient(ellipse at center, #0a1628 0%, #020408 70%);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+#welcome-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.welcome-card {
+    text-align: center;
+    padding: 50px 60px;
+    background: linear-gradient(145deg, rgba(8,14,28,0.98), rgba(5,10,22,0.98));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 0 60px rgba(0,212,255,0.15), 0 0 120px rgba(170,68,255,0.08);
+    max-width: 520px;
+    position: relative;
+    overflow: hidden;
+}
+.welcome-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), var(--cyan), transparent);
+}
+.welcome-logo {
+    width: 80px; height: 80px;
+    margin: 0 auto 24px;
+    background: conic-gradient(var(--cyan), var(--purple), var(--cyan));
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    animation: spin-glow 8s linear infinite;
+    box-shadow: 0 0 30px rgba(0,212,255,0.4);
+}
+@keyframes spin-glow { 0%{filter:hue-rotate(0deg)} 100%{filter:hue-rotate(360deg)} }
+.welcome-title {
+    font-size: 28px; font-weight: 700; color: #fff;
+    margin-bottom: 8px; letter-spacing: 1px;
+}
+.welcome-subtitle {
+    font-size: 13px; color: var(--dim); margin-bottom: 28px;
+    letter-spacing: 3px; text-transform: uppercase;
+}
+.welcome-msg {
+    font-size: 16px; color: var(--text);
+    margin-bottom: 12px; line-height: 1.7;
+}
+.welcome-univ {
+    font-size: 13px; color: var(--cyan);
+    margin-bottom: 32px; padding: 12px 20px;
+    background: rgba(0,212,255,0.06);
+    border-radius: 8px;
+    border: 1px solid rgba(0,212,255,0.15);
+}
+.welcome-btn {
+    padding: 14px 48px;
+    font-size: 15px; font-weight: 600;
+    font-family: 'Exo 2', sans-serif;
+    border: none; border-radius: 10px;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--cyan), #0088cc);
+    color: #000;
+    letter-spacing: 2px;
+    transition: all .3s;
+    box-shadow: 0 0 25px rgba(0,212,255,0.4);
+}
+.welcome-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 0 40px rgba(0,212,255,0.6);
+}
+.welcome-particles {
+    position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+}
+.welcome-particle {
+    position: absolute; width: 3px; height: 3px;
+    background: var(--cyan); border-radius: 50%;
+    opacity: 0.4; animation: float-up 8s infinite;
+}
+@keyframes float-up {
+    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+    20% { opacity: 0.5; }
+    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+/* ── LAYOUT ── */
+#app { display:flex; height:100vh; width:100vw; }
+
+#sidebar-left {
+    width: 230px; min-width: 230px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    z-index: 10; overflow-y: auto;
+}
+
+#viewport-container {
+    flex: 1; position: relative;
+    background: #020408; overflow: hidden;
+}
+
+#sidebar-right {
+    width: 280px; min-width: 280px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    z-index: 10; overflow-y: auto;
+}
+
+canvas#sim { width:100%!important; height:100%!important; display:block; }
+
+/* ── HEADER / LOGO ── */
+.logo-bar {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, rgba(0,212,255,0.08), transparent);
+}
+.logo-icon {
+    width:28px; height:28px;
+    background: conic-gradient(var(--cyan), var(--purple), var(--cyan));
+    border-radius: 6px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; box-shadow: var(--glow);
+    animation: spin-glow 8s linear infinite;
+}
+.logo-text { font-weight:700; font-size:14px; color:#fff; letter-spacing:1px; }
+.logo-sub { font-size:9px; color:var(--dim); letter-spacing:2px; }
+
+/* ── LANGUAGE TOGGLE ── */
+.lang-bar {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+}
+.lang-btn {
+    flex: 1; padding: 5px 8px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.3);
+    color: var(--dim); font-size: 11px;
+    cursor: pointer; border-radius: 4px;
+    transition: all .15s; text-align: center;
+    font-family: 'Exo 2', sans-serif;
+}
+.lang-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.lang-btn.active {
+    background: rgba(0,212,255,0.15);
+    border-color: var(--cyan); color: var(--cyan);
+    box-shadow: var(--glow);
+}
+
+/* ── PANELS ── */
+.panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+}
+.panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; color: var(--cyan);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+}
+.panel-title::before {
+    content:''; width:3px; height:10px;
+    background: var(--cyan); box-shadow: var(--glow); border-radius:2px;
+}
+
+/* ── CONTROLS ── */
+.ctrl-row {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 6px;
+}
+.ctrl-label { color: var(--dim); font-size:11px; }
+.ctrl-val {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--cyan); font-size:11px; min-width:32px; text-align:right;
+}
+
+input[type=range] {
+    -webkit-appearance:none; width:100%; height:4px;
+    background: rgba(0,212,255,0.15); border-radius:2px;
+    margin: 3px 0 8px; outline:none;
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:12px; height:12px;
+    background: var(--cyan); border-radius:50%; cursor:pointer;
+    box-shadow: 0 0 6px var(--cyan);
+}
+
+/* ── BUTTONS ── */
+.btn-row { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+.btn {
+    flex:1; padding: 6px 8px;
+    border: 1px solid var(--border);
+    background: rgba(0,212,255,0.06);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size:10px; cursor:pointer; border-radius:4px;
+    letter-spacing:1px; transition: all .15s;
+    text-align:center; min-width:50px;
+}
+.btn:hover {
+    background: rgba(0,212,255,0.15);
+    border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow);
+}
+.btn.active {
+    background: rgba(0,212,255,0.2);
+    border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow);
+}
+.btn.green { border-color: rgba(0,255,136,0.3); }
+.btn.green:hover, .btn.green.active {
+    background: rgba(0,255,136,0.15); border-color: var(--green);
+    color: var(--green); box-shadow: 0 0 12px rgba(0,255,136,0.4);
+}
+.btn.red { border-color: rgba(255,34,85,0.3); }
+.btn.red:hover, .btn.red.active {
+    background: rgba(255,34,85,0.15); border-color: var(--red);
+    color: var(--red); box-shadow: 0 0 12px rgba(255,34,85,0.4);
+}
+.btn.orange { border-color: rgba(255,107,0,0.3); }
+.btn.orange:hover, .btn.orange.active {
+    background: rgba(255,107,0,0.15); border-color: var(--orange);
+    color: var(--orange); box-shadow: 0 0 12px rgba(255,107,0,0.4);
+}
+.btn.purple { border-color: rgba(170,68,255,0.3); }
+.btn.purple:hover, .btn.purple.active {
+    background: rgba(170,68,255,0.15); border-color: var(--purple);
+    color: var(--purple); box-shadow: 0 0 12px rgba(170,68,255,0.4);
+}
+
+/* ── SENSOR DISPLAY ── */
+#sensor-display {
+    display: flex; gap: 4px; justify-content: center;
+    padding: 8px 0; flex-wrap: wrap;
+}
+.sensor-dot {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 1px solid rgba(0,212,255,0.3);
+    background: rgba(0,212,255,0.05);
+    transition: all 0.08s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-family: 'Share Tech Mono', monospace;
+    color: var(--dim); position: relative;
+}
+.sensor-dot.active {
+    background: var(--cyan); border-color: var(--cyan);
+    box-shadow: 0 0 10px var(--cyan); color: #000;
+}
+
+/* ── TELEMETRY ── */
+.telem-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; border-bottom: 1px solid rgba(0,212,255,0.06);
+}
+.telem-key {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; color: var(--dim); letter-spacing: 1px;
+}
+.telem-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; color: var(--cyan);
+}
+
+/* ── ARDUINO EDITOR ── */
+.arduino-editor {
+    width: 100%; height: 180px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 8px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.5;
+    tab-size: 2;
+    -moz-tab-size: 2;
+}
+.arduino-editor:focus {
+    border-color: rgba(0,212,255,0.4);
+    box-shadow: 0 0 8px rgba(0,212,255,0.15);
+}
+
+/* ── CODE LANGUAGE SELECTOR ── */
+.lang-selector {
+    display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap;
+}
+.lang-select-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.4);
+    color: var(--dim); font-size: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    cursor: pointer; border-radius: 3px;
+    letter-spacing: 1px; transition: all .15s;
+}
+.lang-select-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.lang-select-btn.active {
+    background: rgba(0,212,255,0.15);
+    border-color: var(--cyan); color: var(--cyan);
+}
+
+/* ── COMPILE STATUS ── */
+.compile-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; padding: 5px 8px;
+    border-radius: 3px; margin-top: 4px;
+    letter-spacing: 1px; text-align: center;
+}
+.compile-ok { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+.compile-err { background: rgba(255,34,85,0.1); color: var(--red); border: 1px solid rgba(255,34,85,0.3); }
+.compile-warn { background: rgba(255,107,0,0.1); color: var(--orange); border: 1px solid rgba(255,107,0,0.3); }
+.compile-info { background: rgba(0,212,255,0.1); color: var(--cyan); border: 1px solid rgba(0,212,255,0.3); }
+
+/* ── CONSOLE OUTPUT ── */
+.console-output {
+    width: 100%; height: 90px;
+    background: rgba(0,0,0,0.8);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: #88cc88;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 6px;
+    resize: none; outline: none;
+    line-height: 1.4;
+}
+
+/* ── TOP BAR ── */
+#top-bar {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 12px;
+    background: linear-gradient(180deg, rgba(2,4,8,0.9), transparent);
+    z-index: 5;
+}
+#top-bar-left { display:flex; align-items:center; gap:12px; }
+#fps-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; color: var(--dim);
+}
+.status-pill {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; padding: 3px 8px;
+    border-radius: 10px; letter-spacing: 2px;
+}
+.pill-running { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.4); }
+.pill-paused { background: rgba(255,107,0,0.15); color: var(--orange); border: 1px solid rgba(255,107,0,0.4); }
+.pill-stopped { background: rgba(255,34,85,0.1); color: var(--red); border: 1px solid rgba(255,34,85,0.3); }
+
+/* ── BOTTOM BAR ── */
+#bottom-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 38px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px;
+    background: linear-gradient(0deg, rgba(2,4,8,0.9), transparent);
+    z-index: 5;
+}
+.creator-credit {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; display: flex; gap: 8px; align-items: center;
+    color: var(--dim);
+    font-family: 'Vazirmatn', 'Exo 2', sans-serif;
+}
+.creator-name { color: var(--cyan); font-weight: 600; }
+.creator-id { color: var(--purple); font-family: 'Share Tech Mono', monospace; }
+
+/* ── TRACK BUTTONS ── */
+.track-btn {
+    padding: 5px 10px; border: 1px solid var(--border);
+    background: rgba(0,0,0,0.4); color: var(--dim);
+    font-family: 'Share Tech Mono',monospace; font-size:9px;
+    cursor:pointer; border-radius:3px; letter-spacing:1px; transition:all .15s;
+}
+.track-btn:hover, .track-btn.active {
+    border-color: var(--purple); color: var(--purple);
+    background: rgba(170,68,255,0.1);
+}
+
+/* ── CODE TEMPLATE BUTTONS ── */
+.code-template-btn {
+    padding: 3px 7px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.3);
+    color: var(--dim); font-size: 9px;
+    font-family: 'Share Tech Mono', monospace;
+    cursor: pointer; border-radius: 3px;
+    transition: all .15s; letter-spacing: 1px;
+}
+.code-template-btn:hover {
+    border-color: var(--purple); color: var(--purple);
+    background: rgba(170,68,255,0.1);
+}
+
+/* ── PID TUNING ── */
+.shortcuts-panel {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 4px; padding: 6px 8px;
+}
+.shortcut-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0; font-size: 10px; color: var(--dim);
+}
+.shortcut-key {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; color: var(--cyan);
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    padding: 1px 5px; border-radius: 3px;
+}
+
+/* ── MINI CHART ── */
+.mini-chart-wrap {
+    margin-bottom: 8px;
+}
+.mini-chart-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; color: var(--dim);
+    letter-spacing: 1px; margin-bottom: 2px;
+}
+canvas.mini-chart {
+    width: 100%; height: 40px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 3px; display: block;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(0,212,255,0.2); border-radius:2px; }
+
+/* ── GRID OVERLAY ── */
+#grid-overlay {
+    position:absolute; inset:0; pointer-events:none; z-index:1;
+    background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+}
+
+/* ── SCAN LINE ── */
+#scan-line {
+    position:absolute; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.15), transparent);
+    animation: scan 4s linear infinite; pointer-events:none; z-index:2;
+}
+@keyframes scan { from{top:0} to{top:100%} }
+
+/* ── CORNER DECORATIONS ── */
+.corner-dec {
+    position:absolute; width:20px; height:20px;
+    border-color: rgba(0,212,255,0.4); border-style: solid;
+    z-index:6; pointer-events:none;
+}
+.corner-tl { top:44px; left:4px; border-width:2px 0 0 2px; }
+.corner-tr { top:44px; right:4px; border-width:2px 2px 0 0; }
+.corner-bl { bottom:42px; left:4px; border-width:0 0 2px 2px; }
+.corner-br { bottom:42px; right:4px; border-width:0 2px 2px 0; }
+
+/* ── ERROR MSG ── */
+#error-msg {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    color:var(--red); font-family:'Share Tech Mono',monospace;
+    text-align:center; display:none; z-index:20;
+    padding:20px; background:rgba(0,0,0,0.85);
+    border:1px solid var(--red); border-radius:8px;
+}
+
+/* ── PROGRESS BAR ── */
+.bar-wrap {
+    background: rgba(0,0,0,0.4); border-radius:2px; height:5px; overflow:hidden; margin-bottom:6px;
+}
+.bar-fill { height:100%; border-radius:2px; transition: width .1s; }
+.bar-cyan { background: linear-gradient(90deg,var(--cyan),#0088bb); box-shadow:0 0 4px var(--cyan); }
+.bar-green { background: linear-gradient(90deg,var(--green),#008844); box-shadow:0 0 4px var(--green); }
+.bar-orange { background: linear-gradient(90deg,var(--orange),#aa4400); box-shadow:0 0 4px var(--orange); }
+.bar-red { background: linear-gradient(90deg,var(--red),#aa0022); }
+
+/* ── PYTHON MODE BADGE ── */
+.python-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(255,212,0,0.15);
+    border: 1px solid rgba(255,212,0,0.4);
+    color: #ffd400;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+}
+
+/* ── MOBILE ── */
+@media(max-width:768px) {
+    #sidebar-left { display:none; }
+    #sidebar-right { width:220px; min-width:220px; }
+}
+@media(max-width:500px) {
+    #sidebar-right { display:none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ WELCOME SCREEN ═══════════════════ -->
+<div id="welcome-overlay">
+    <div class="welcome-particles" id="welcome-particles"></div>
+    <div class="welcome-card">
+        <div class="welcome-logo">🤖</div>
+        <div class="welcome-title" data-i18n="welcome_title">LineBot Pro Simulator</div>
+        <div class="welcome-subtitle">v3.0 — ADVANCED EDITION</div>
+        <div class="welcome-msg" data-i18n="welcome_msg">
+            به شبیه‌ساز حرفه‌ای ربات پی‌گیر خط خوش آمدید!<br>
+            این برنامه برای آموزش و تست الگوریتم‌های رباتیک طراحی شده است.
+        </div>
+        <div class="welcome-univ" data-i18n="welcome_univ">
+            🎓 ارائه شده توسط انجمن رباتیک دانشگاه بیرجند
+        </div>
+        <button class="welcome-btn" id="btn-start-app" onclick="startApp()" data-i18n="start_btn">▶ شروع</button>
+    </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP ═══════════════════ -->
+<div id="app">
+
+    <!-- ═══ LEFT SIDEBAR ═══ -->
+    <div id="sidebar-left">
+        <div class="logo-bar">
+            <div class="logo-icon">⚙</div>
+            <div>
+                <div class="logo-text">LineBotPro</div>
+                <div class="logo-sub" data-i18n="simulator_ver">SIMULATOR v3.0</div>
+            </div>
+        </div>
+
+        <!-- Language Toggle -->
+        <div class="lang-bar">
+            <button class="lang-btn active" id="lang-en" onclick="setLanguage('en')">English</button>
+            <button class="lang-btn" id="lang-fa" onclick="setLanguage('fa')">فارسی</button>
+        </div>
+
+        <!-- Simulation Control -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="sim_control">Simulation</div>
+            <div class="btn-row">
+                <button class="btn green" id="btn-run" onclick="toggleRun()">▶ RUN</button>
+                <button class="btn orange" id="btn-pause" onclick="togglePause()">⏸ PAUSE</button>
+                <button class="btn red" onclick="resetSim()">↺ RESET</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn" id="btn-slow" onclick="toggleSlow()">0.5× SLOW</button>
+                <button class="btn" id="btn-step" onclick="stepSim()">STEP</button>
+            </div>
+        </div>
+
+        <!-- Camera -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="camera">Camera</div>
+            <div class="btn-row">
+                <button class="btn active" id="cam-orbit" onclick="setCamera('orbit')" data-i18n="cam_orbit">ORBIT</button>
+                <button class="btn" id="cam-top" onclick="setCamera('top')" data-i18n="cam_top">TOP</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn" id="cam-follow" onclick="setCamera('follow')" data-i18n="cam_follow">FOLLOW</button>
+                <button class="btn" id="cam-free" onclick="setCamera('free')" data-i18n="cam_free">FREE</button>
+            </div>
+        </div>
+
+        <!-- Track Selection -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="track">Track</div>
+            <div class="btn-row">
+                <button class="track-btn active" id="track-oval" onclick="setTrack('oval')">OVAL</button>
+                <button class="track-btn" id="track-figure8" onclick="setTrack('figure8')">FIG-8</button>
+                <button class="track-btn" id="track-zigzag" onclick="setTrack('zigzag')">ZIGZAG</button>
+            </div>
+            <div class="btn-row">
+                <button class="track-btn" id="track-maze" onclick="setTrack('maze')">L-MAZE</button>
+                <button class="track-btn" id="track-spiral" onclick="setTrack('spiral')">SPIRAL</button>
+            </div>
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="track_width">Track Width</span><span class="ctrl-val" id="v-twidth">20px</span></div>
+            <input type="range" id="sl-twidth" min="10" max="40" value="20" oninput="setTrackWidth(this.value)">
+        </div>
+
+        <!-- Robot Config -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="robot_config">Robot Config</div>
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="max_speed">Max Speed</span><span class="ctrl-val" id="v-speed">200</span></div>
+            <input type="range" id="sl-speed" min="50" max="500" value="200" oninput="updateConfig('maxSpeed',this.value,'v-speed')">
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="wheel_base">Wheel Base</span><span class="ctrl-val" id="v-wb">0.18m</span></div>
+            <input type="range" id="sl-wb" min="5" max="30" value="18" oninput="updateConfigF('wheelBase',this.value/100,'v-wb','m',2)">
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="mass">Mass (g)</span><span class="ctrl-val" id="v-mass">150</span></div>
+            <input type="range" id="sl-mass" min="50" max="500" value="150" oninput="updateConfig('mass',this.value,'v-mass')">
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="friction">Friction</span><span class="ctrl-val" id="v-friction">0.80</span></div>
+            <input type="range" id="sl-friction" min="10" max="100" value="80" oninput="updateConfigF('friction',this.value/100,'v-friction','',2)">
+        </div>
+
+        <!-- Sensors Config -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="sensors">Sensors</div>
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="sensor_count">Count</span><span class="ctrl-val" id="v-scount">5</span></div>
+            <input type="range" id="sl-scount" min="3" max="9" step="2" value="5" oninput="updateSensorCount(this.value)">
+            <div class="ctrl-row"><span class="ctrl-label" data-i18n="sensor_spacing">Spacing</span><span class="ctrl-val" id="v-sspace">12mm</span></div>
+            <input type="range" id="sl-sspace" min="5" max="25" value="12" oninput="updateConfig('sensorSpacing',this.value,'v-sspace','mm')">
+        </div>
+
+        <!-- Keyboard Shortcuts -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="shortcuts">Shortcuts</div>
+            <div class="shortcuts-panel">
+                <div class="shortcut-row"><span data-i18n="sc_run">Run/Pause</span><span class="shortcut-key">SPACE</span></div>
+                <div class="shortcut-row"><span data-i18n="sc_reset">Reset</span><span class="shortcut-key">R</span></div>
+                <div class="shortcut-row"><span data-i18n="sc_slow">Slow-Mo</span><span class="shortcut-key">S</span></div>
+                <div class="shortcut-row"><span data-i18n="sc_step">Step</span><span class="shortcut-key">T</span></div>
+                <div class="shortcut-row"><span data-i18n="sc_upload">Upload Code</span><span class="shortcut-key">U</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ VIEWPORT ═══ -->
+    <div id="viewport-container">
+        <div id="grid-overlay"></div>
+        <div id="scan-line"></div>
+        <canvas id="sim"></canvas>
+        <div class="corner-dec corner-tl"></div>
+        <div class="corner-dec corner-tr"></div>
+        <div class="corner-dec corner-bl"></div>
+        <div class="corner-dec corner-br"></div>
+
+        <div id="top-bar">
+            <div id="top-bar-left">
+                <span id="fps-display">FPS: --</span>
+                <span class="status-pill pill-stopped" id="status-pill">STOPPED</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim)" data-i18n="drag_hint">DRAG: ROTATE | SCROLL: ZOOM</span>
+            </div>
+        </div>
+
+        <div id="bottom-bar">
+            <div style="display:flex;gap:6px;align-items:center;">
+                <button class="track-btn" onclick="setTrack('oval')" style="font-size:8px">OVAL</button>
+                <button class="track-btn" onclick="setTrack('figure8')" style="font-size:8px">FIG-8</button>
+                <button class="track-btn" onclick="setTrack('zigzag')" style="font-size:8px">ZIGZAG</button>
+                <button class="track-btn" onclick="setTrack('maze')" style="font-size:8px">MAZE</button>
+                <button class="track-btn" onclick="setTrack('spiral')" style="font-size:8px">SPIRAL</button>
+            </div>
+            <div class="creator-credit">
+                <span class="creator-name">رضا محمدی ملاسرائی</span>
+                <span class="creator-id">ID: RezaForgeX</span>
+            </div>
+        </div>
+
+        <div id="error-msg">
+            <div>⚠ THREE.JS LOAD FAILED</div>
+            <div style="font-size:10px;color:var(--dim);margin-top:8px" data-i18n="check_internet">Check internet connection</div>
+        </div>
+    </div>
+
+    <!-- ═══ RIGHT SIDEBAR ═══ -->
+    <div id="sidebar-right">
+
+        <!-- Code Language Selector -->
+        <div class="panel-section" style="padding-bottom:6px;">
+            <div class="panel-title">Code Mode</div>
+            <div class="lang-selector">
+                <button class="lang-select-btn active" id="mode-arduino" onclick="setCodeMode('arduino')">Arduino/C++</button>
+                <button class="lang-select-btn" id="mode-python" onclick="setCodeMode('python')">Python 🐍</button>
+            </div>
+            <div id="python-status" style="display:none;margin-top:4px;">
+                <span class="python-badge">PYODIDE</span>
+                <span id="pyodide-status-text" style="font-size:9px;color:var(--dim);margin-left:6px;font-family:'Share Tech Mono',monospace;">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Code Editor (Arduino/C++ mode) -->
+        <div class="panel-section" id="arduino-panel">
+            <div class="panel-title" data-i18n="arduino_ide">Arduino IDE</div>
+
+            <!-- Code Templates -->
+            <div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:2px;">
+                <button class="code-template-btn" onclick="loadTemplate('linefollow')" data-i18n="tmpl_line">Line Follow</button>
+                <button class="code-template-btn" onclick="loadTemplate('pid')" data-i18n="tmpl_pid">PID Control</button>
+                <button class="code-template-btn" onclick="loadTemplate('advanced')" data-i18n="tmpl_adv">Advanced</button>
+                <button class="code-template-btn" onclick="loadTemplate('maze')" data-i18n="tmpl_maze">Maze Solver</button>
+            </div>
+
+            <textarea id="arduino-code" class="arduino-editor" spellcheck="false">// Arduino Line Follower Code
+// Available functions:
+//   setMotor(leftPWM, rightPWM)  -255 to 255
+//   digitalRead(sensorIndex)     returns 0 or 1
+//   analogRead(sensorIndex)      returns 0 or 1023
+//   delay(ms)                    non-blocking
+//   Serial.print(text)           console output
+
+let baseSpeed = 180;
+
+function setup() {
+    Serial.println("Robot Ready!");
+}
+
+function loop() {
+    // Read sensors (5 sensors, index 0..4)
+    let s0 = digitalRead(0);
+    let s1 = digitalRead(1);
+    let s2 = digitalRead(2); // center
+    let s3 = digitalRead(3);
+    let s4 = digitalRead(4);
+
+    // Calculate weighted error
+    let error = (s0 * -2) + (s1 * -1) +
+                (s2 * 0) + (s3 * 1) + (s4 * 2);
+
+    // Simple proportional correction
+    let correction = error * 35;
+
+    setMotor(baseSpeed - correction, baseSpeed + correction);
+}</textarea>
+
+            <div class="btn-row" style="margin-top:8px;">
+                <button class="btn green" onclick="uploadCode()">
+                    ⬆ <span data-i18n="upload_btn">UPLOAD</span>
+                </button>
+                <button class="btn orange" onclick="stopCode()">
+                    ■ <span data-i18n="stop_btn">STOP</span>
+                </button>
+                <button class="btn purple" onclick="clearConsole()">
+                    🗑 <span data-i18n="clear_console">CLR</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Code Editor (Python mode) -->
+        <div class="panel-section" id="python-panel" style="display:none;">
+            <div class="panel-title">Python IDE <span class="python-badge">🐍</span></div>
+
+            <div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:2px;">
+                <button class="code-template-btn" onclick="loadPythonTemplate('linefollow')">Line Follow</button>
+                <button class="code-template-btn" onclick="loadPythonTemplate('pid')">PID Control</button>
+                <button class="code-template-btn" onclick="loadPythonTemplate('advanced')">Advanced</button>
+            </div>
+
+            <textarea id="python-code" class="arduino-editor" spellcheck="false"># Python Line Follower
+# Available functions:
+#   set_motor(left, right)   -255 to 255
+#   digital_read(pin)        returns 0 or 1
+#   analog_read(pin)         returns 0 or 1023
+#   serial_print(text)       console output
+#   millis()                 time in ms
+
+base_speed = 180
+
+def setup():
+    serial_print("Robot Ready! (Python)")
+
+def loop():
+    # Read 5 sensors (index 0..4)
+    s0 = digital_read(0)
+    s1 = digital_read(1)
+    s2 = digital_read(2)  # center
+    s3 = digital_read(3)
+    s4 = digital_read(4)
+
+    # Weighted error
+    error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2)
+
+    # P controller
+    correction = error * 35
+    set_motor(base_speed - correction, base_speed + correction)
+</textarea>
+
+            <div class="btn-row" style="margin-top:8px;">
+                <button class="btn green" onclick="uploadCode()">⬆ UPLOAD</button>
+                <button class="btn orange" onclick="stopCode()">■ STOP</button>
+                <button class="btn purple" onclick="clearConsole()">🗑 CLR</button>
+            </div>
+        </div>
+
+        <!-- Compile Status (shared) -->
+        <div class="panel-section" style="padding-top:6px;padding-bottom:6px;">
+            <div id="compile-status" class="compile-status compile-ok" data-i18n="compile_ready">✓ READY</div>
+
+            <!-- Console Output -->
+            <div style="margin-top:6px;">
+                <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);margin-bottom:3px;" data-i18n="console_output">SERIAL MONITOR:</div>
+                <textarea id="serial-console" class="console-output" readonly></textarea>
+            </div>
+        </div>
+
+        <!-- Telemetry -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="telemetry">Telemetry</div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_speed">SPEED</span><span class="telem-val" id="t-speed">0.00 m/s</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_heading">HEADING</span><span class="telem-val" id="t-heading">0.0°</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_error">ERROR</span><span class="telem-val" id="t-error">0.000</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_lpwm">L-PWM</span><span class="telem-val" id="t-lpwm">0</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_rpwm">R-PWM</span><span class="telem-val" id="t-rpwm">0</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_lap">LAP</span><span class="telem-val" id="t-lap">0</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_laptime">LAP TIME</span><span class="telem-val" id="t-laptime">--:--</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_bestlap">BEST LAP</span><span class="telem-val" id="t-bestlap">--:--</span></div>
+            <div class="telem-row"><span class="telem-key" data-i18n="t_dist">DISTANCE</span><span class="telem-val" id="t-dist">0.00 m</span></div>
+        </div>
+
+        <!-- Motor Power Bars -->
+        <div class="panel-section">
+            <div class="panel-title">Motors</div>
+            <div style="font-size:9px;color:var(--dim);margin-bottom:3px;" data-i18n="t_lmotor">L MOTOR</div>
+            <div class="bar-wrap"><div class="bar-fill bar-cyan" id="bar-l" style="width:0%"></div></div>
+            <div style="font-size:9px;color:var(--dim);margin-bottom:3px;" data-i18n="t_rmotor">R MOTOR</div>
+            <div class="bar-wrap"><div class="bar-fill bar-green" id="bar-r" style="width:0%"></div></div>
+            <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);">
+                <span id="t-lv">0%</span><span id="t-rv">0%</span>
+            </div>
+        </div>
+
+        <!-- Sensor Array -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="sensor_array">Sensor Array</div>
+            <div id="sensor-display"></div>
+            <div style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-align:center;margin-top:4px;">
+                <span data-i18n="center_error">CENTER ERROR:</span>
+                <span id="t-cerror" style="color:var(--cyan);">0.00</span>
+            </div>
+            <div style="font-size:9px;color:var(--dim);font-family:'Share Tech Mono',monospace;text-align:center;margin-top:2px;">
+                <span id="sensor-binary">[ 0 0 0 0 0 ]</span>
+            </div>
+            <div style="margin-top:4px;">
+                <div class="bar-wrap" style="position:relative;">
+                    <div class="bar-fill bar-orange" id="bar-error" style="width:50%;transition:width 0.05s;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PID Tuning -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="pid_tuning">PID Tuning</div>
+            <div class="ctrl-row"><span class="ctrl-label">Kp</span><span class="ctrl-val" id="v-kp">0.40</span></div>
+            <input type="range" id="sl-kp" min="0" max="200" value="40" oninput="updatePID('kp',this.value)">
+            <div class="ctrl-row"><span class="ctrl-label">Ki</span><span class="ctrl-val" id="v-ki">0.00</span></div>
+            <input type="range" id="sl-ki" min="0" max="100" value="0" oninput="updatePID('ki',this.value)">
+            <div class="ctrl-row"><span class="ctrl-label">Kd</span><span class="ctrl-val" id="v-kd">0.10</span></div>
+            <input type="range" id="sl-kd" min="0" max="100" value="10" oninput="updatePID('kd',this.value)">
+        </div>
+
+        <!-- Live Graphs -->
+        <div class="panel-section">
+            <div class="panel-title" data-i18n="live_graphs">Live Graphs</div>
+            <div class="mini-chart-wrap">
+                <div class="mini-chart-label" data-i18n="chart_error">ERROR</div>
+                <canvas class="mini-chart" id="chart-error"></canvas>
+            </div>
+            <div class="mini-chart-wrap">
+                <div class="mini-chart-label" data-i18n="chart_speed">SPEED</div>
+                <canvas class="mini-chart" id="chart-speed"></canvas>
+            </div>
+            <div class="mini-chart-wrap">
+                <div class="mini-chart-label" data-i18n="chart_correction">CORRECTION</div>
+                <canvas class="mini-chart" id="chart-corr"></canvas>
+            </div>
+        </div>
+
+    </div><!-- end right sidebar -->
+</div><!-- end #app -->
+
+<!-- THREE.JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  LINEBOT PRO v3.1 — FIXED & IMPROVED
+// ════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+// I18N TRANSLATIONS
+// ─────────────────────────────────────────────
+const i18n = {
+    en: {
+        welcome_title: "LineBot Pro Simulator",
+        welcome_msg: "Welcome to the Professional Line Follower Robot Simulator!<br>Designed for robotics education and algorithm testing.",
+        welcome_univ: "🎓 Presented by Birjand University Robotics Club",
+        start_btn: "▶ START",
+        simulator_ver: "SIMULATOR v3.1",
+        sim_control: "Simulation",
+        camera: "Camera",
+        cam_orbit: "ORBIT", cam_top: "TOP", cam_follow: "FOLLOW", cam_free: "FREE",
+        track: "Track",
+        track_width: "Track Width",
+        robot_config: "Robot Config",
+        max_speed: "Max Speed",
+        wheel_base: "Wheel Base",
+        mass: "Mass (g)",
+        friction: "Friction",
+        sensors: "Sensors",
+        sensor_count: "Count",
+        sensor_spacing: "Spacing",
+        shortcuts: "Shortcuts",
+        sc_run: "Run/Pause", sc_reset: "Reset", sc_slow: "Slow-Mo", sc_step: "Step", sc_upload: "Upload",
+        arduino_ide: "Arduino IDE",
+        tmpl_line: "Line Follow", tmpl_pid: "PID Control", tmpl_adv: "Advanced", tmpl_maze: "Maze Solver",
+        upload_btn: "UPLOAD", stop_btn: "STOP", clear_console: "CLR",
+        compile_ready: "✓ READY",
+        console_output: "SERIAL MONITOR:",
+        telemetry: "Telemetry",
+        t_speed: "SPEED", t_heading: "HEADING", t_error: "ERROR",
+        t_lpwm: "L-PWM", t_rpwm: "R-PWM", t_lap: "LAP", t_laptime: "LAP TIME", t_bestlap: "BEST LAP", t_dist: "DISTANCE",
+        t_lmotor: "L MOTOR", t_rmotor: "R MOTOR",
+        sensor_array: "Sensor Array",
+        center_error: "CENTER ERROR:",
+        pid_tuning: "PID Tuning",
+        live_graphs: "Live Graphs",
+        chart_error: "ERROR", chart_speed: "SPEED", chart_correction: "CORRECTION",
+        drag_hint: "DRAG: ROTATE | SCROLL: ZOOM",
+        check_internet: "Check internet connection"
+    },
+    fa: {
+        welcome_title: "شبیه‌ساز LineBot Pro",
+        welcome_msg: "به شبیه‌ساز حرفه‌ای ربات پی‌گیر خط خوش آمدید!<br>این برنامه برای آموزش و تست الگوریتم‌های رباتیک طراحی شده است.",
+        welcome_univ: "🎓 ارائه شده توسط انجمن رباتیک دانشگاه بیرجند",
+        start_btn: "▶ شروع",
+        simulator_ver: "شبیه‌ساز v3.1",
+        sim_control: "شبیه‌سازی",
+        camera: "دوربین",
+        cam_orbit: "چرخشی", cam_top: "بالا", cam_follow: "تعقیب", cam_free: "آزاد",
+        track: "مسیر",
+        track_width: "عرض مسیر",
+        robot_config: "پیکربندی ربات",
+        max_speed: "حداکثر سرعت",
+        wheel_base: "فاصله چرخ",
+        mass: "جرم (گرم)",
+        friction: "اصطکاک",
+        sensors: "حسگرها",
+        sensor_count: "تعداد",
+        sensor_spacing: "فاصله",
+        shortcuts: "میانبرها",
+        sc_run: "اجرا/مکث", sc_reset: "ریست", sc_slow: "آهسته", sc_step: "گام", sc_upload: "آپلود کد",
+        arduino_ide: "محیط Arduino",
+        tmpl_line: "پیروی خط", tmpl_pid: "کنترل PID", tmpl_adv: "پیشرفته", tmpl_maze: "حل ماز",
+        upload_btn: "آپلود", stop_btn: "توقف", clear_console: "پاک",
+        compile_ready: "✓ آماده",
+        console_output: "مانیتور سریال:",
+        telemetry: "تله‌متری",
+        t_speed: "سرعت", t_heading: "جهت", t_error: "خطا",
+        t_lpwm: "PWM چپ", t_rpwm: "PWM راست", t_lap: "دور", t_laptime: "زمان دور", t_bestlap: "بهترین دور", t_dist: "مسافت",
+        t_lmotor: "موتور چپ", t_rmotor: "موتور راست",
+        sensor_array: "آرایه حسگر",
+        center_error: "خطای مرکز:",
+        pid_tuning: "تنظیم PID",
+        live_graphs: "نمودار زنده",
+        chart_error: "خطا", chart_speed: "سرعت", chart_correction: "تصحیح",
+        drag_hint: "کشیدن: چرخش | اسکرول: زوم",
+        check_internet: "اتصال اینترنت را بررسی کنید"
+    }
+};
+
+let currentLang = 'en';
+
+function setLanguage(lang) {
+    currentLang = lang;
+    const t = i18n[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key] !== undefined) {
+            if (el.innerHTML.includes('<br>') || t[key].includes('<br>')) {
+                el.innerHTML = t[key];
+            } else {
+                el.textContent = t[key];
+            }
+        }
+    });
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+    document.getElementById('lang-fa').classList.toggle('active', lang === 'fa');
+    if (lang === 'fa') {
+        document.body.classList.add('rtl');
+        document.documentElement.setAttribute('dir', 'rtl');
+    } else {
+        document.body.classList.remove('rtl');
+        document.documentElement.setAttribute('dir', 'ltr');
+    }
+}
+
+// ─────────────────────────────────────────────
+// WELCOME SCREEN
+// ─────────────────────────────────────────────
+function initWelcomeParticles() {
+    const cont = document.getElementById('welcome-particles');
+    for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        p.className = 'welcome-particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 8 + 's';
+        p.style.animationDuration = (6 + Math.random() * 6) + 's';
+        cont.appendChild(p);
+    }
+}
+
+function startApp() {
+    const overlay = document.getElementById('welcome-overlay');
+    overlay.classList.add('hidden');
+    setTimeout(() => overlay.style.display = 'none', 800);
+}
+
+// ─────────────────────────────────────────────
+// GLOBAL STATE
+// ─────────────────────────────────────────────
+const state = {
+    running: false,
+    paused: false,
+    slowMotion: false,
+    cameraMode: 'orbit',
+    trackType: 'oval',
+    trackWidth: 20,
+    lap: 0,
+    lapStartTime: 0,
+    bestLap: null,
+    totalDistance: 0
+};
+
+const robot = {
+    t: 0,
+    x: 0, y: 0.04, z: 0,
+    angle: 0,
+    speed: 0,
+    angularVel: 0,
+    leftPWM: 0,
+    rightPWM: 0,
+    maxSpeed: 200,
+    wheelBase: 0.18,
+    mass: 150,
+    friction: 0.80,
+    sensorCount: 5,
+    sensorSpacing: 12,
+    sensors: [],
+    pid: { kp: 0.40, ki: 0.00, kd: 0.10 },
+    pidError: 0,
+    pidIntegral: 0,
+    pidLastError: 0
+};
+
+const config = {
+    WHEEL_RADIUS: 0.025,
+    SENSOR_HEIGHT: 0.005,
+    SENSOR_FORWARD_OFFSET: 0.095
+};
+
+const chartData = {
+    error: Array(100).fill(0),
+    speed: Array(100).fill(0),
+    corr: Array(100).fill(0)
+};
+
+// ─────────────────────────────────────────────
+// THREE.JS SCENE VARIABLES
+// ─────────────────────────────────────────────
+let scene, camera, renderer;
+let robotMesh, chassisMesh, wheelMeshes = [], sensorMeshes = [], sensorGlows = [];
+let trackMesh, groundMesh, gridHelper;
+let trackPath = [];
+let trackEdgeLines = [];
+
+// Camera orbit state
+let isDragging = false, lastMouse = {x: 0, y: 0};
+let camTheta = 0.6, camPhi = 1.0, camDist = 3.5;
+let camTarget = {x: 0, y: 0, z: 0};
+
+// ─────────────────────────────────────────────
+// CODE EXECUTION ENGINE
+// ─────────────────────────────────────────────
+let uploadedSetupFn = null;
+let uploadedLoopFn = null;
+let codeRunning = false;
+let serialBuffer = '';
+let codeMode = 'arduino'; // 'arduino' | 'python'
+
+// Global shared API state (these get updated each simStep)
+const _apiState = {
+    sensors: [],
+    leftPWM: 0,
+    rightPWM: 0,
+    speed: 0,
+    angularVel: 0
+};
+
+// ── ARDUINO/JS API ──
+// These are real function references that the compiled code will call
+function _api_setMotor(left, right) {
+    left = Math.max(-255, Math.min(255, Number(left) || 0));
+    right = Math.max(-255, Math.min(255, Number(right) || 0));
+    robot.leftPWM = left;
+    robot.rightPWM = right;
+    // Convert PWM to physics velocities
+    const lNorm = left / 255;
+    const rNorm = right / 255;
+    const maxV = robot.maxSpeed / 1000 * robot.friction;
+    robot.speed = (Math.abs(lNorm) + Math.abs(rNorm)) / 2 * maxV;
+    // Differential drive: angular velocity from wheel speed difference
+    robot.angularVel = (rNorm - lNorm) * (maxV / robot.wheelBase) * 2.5;
+}
+
+function _api_digitalRead(pin) {
+    const idx = Math.max(0, Math.min(robot.sensors.length - 1, parseInt(pin) || 0));
+    return robot.sensors[idx] ? 1 : 0;
+}
+
+function _api_analogRead(pin) {
+    const idx = Math.max(0, Math.min(robot.sensors.length - 1, parseInt(pin) || 0));
+    return robot.sensors[idx] ? 1023 : 0;
+}
+
+function _api_delay(ms) {
+    // Non-blocking in simulation — intentionally empty
+}
+
+function _api_map(x, in_min, in_max, out_min, out_max) {
+    if (in_max === in_min) return out_min;
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+function _api_constrain(val, minV, maxV) {
+    return Math.max(minV, Math.min(maxV, val));
+}
+
+function _api_millis() { return performance.now(); }
+function _api_micros() { return performance.now() * 1000; }
+
+const _api_Serial = {
+    print: function(t) { serialLog(String(t)); },
+    println: function(t) { serialLog(String(t) + '\n'); }
+};
+
+function uploadArduinoCode() {
+    const code = document.getElementById('arduino-code').value.trim();
+    const statusEl = document.getElementById('compile-status');
+
+    if (!code) {
+        statusEl.className = 'compile-status compile-err';
+        statusEl.textContent = '✗ EMPTY CODE';
+        return;
+    }
+
+    try {
+        codeRunning = false;
+        clearConsole();
+        statusEl.className = 'compile-status compile-info';
+        statusEl.textContent = '⟳ COMPILING...';
+
+        // Build sandboxed execution context using Function constructor
+        // Inject API as closures — NOT .bind() calls which break toString()
+        const wrappedCode = `
+"use strict";
+// Injected Arduino API
+var setMotor = _api_setMotor;
+var digitalRead = _api_digitalRead;
+var analogRead = _api_analogRead;
+var delay = _api_delay;
+var Serial = _api_Serial;
+var map = _api_map;
+var constrain = _api_constrain;
+var abs = Math.abs;
+var sqrt = Math.sqrt;
+var pow = Math.pow;
+var sin = Math.sin;
+var cos = Math.cos;
+var tan = Math.tan;
+var atan = Math.atan;
+var atan2 = Math.atan2;
+var radians = function(d){ return d * Math.PI / 180; };
+var degrees = function(r){ return r * 180 / Math.PI; };
+var millis = _api_millis;
+var micros = _api_micros;
+var HIGH = 1; var LOW = 0;
+var INPUT = 0; var OUTPUT = 1;
+var A0 = 0; var A1 = 1; var A2 = 2; var A3 = 3; var A4 = 4; var A5 = 5;
+var PI = Math.PI;
+
+// ── USER CODE ──
+${code}
+
+// Return exported functions
+return {
+    setup: (typeof setup === 'function') ? setup : null,
+    loop:  (typeof loop  === 'function') ? loop  : null
+};
+`;
+        // Create function — all API refs are from outer scope (closure)
+        const compiled = new Function(
+            '_api_setMotor', '_api_digitalRead', '_api_analogRead',
+            '_api_delay', '_api_Serial', '_api_map', '_api_constrain',
+            '_api_millis', '_api_micros',
+            wrappedCode
+        );
+
+        const result = compiled(
+            _api_setMotor, _api_digitalRead, _api_analogRead,
+            _api_delay, _api_Serial, _api_map, _api_constrain,
+            _api_millis, _api_micros
+        );
+
+        if (!result || typeof result !== 'object') {
+            throw new Error('Code did not return valid exports');
+        }
+
+        uploadedSetupFn = result.setup;
+        uploadedLoopFn = result.loop;
+
+        if (!uploadedLoopFn) {
+            statusEl.className = 'compile-status compile-err';
+            statusEl.textContent = '✗ NO loop() FUNCTION FOUND';
+            return;
+        }
+
+        // Run setup()
+        if (uploadedSetupFn) {
+            try {
+                uploadedSetupFn();
+            } catch (setupErr) {
+                statusEl.className = 'compile-status compile-warn';
+                statusEl.textContent = '⚠ SETUP WARN: ' + setupErr.message;
+                console.warn('Setup warning:', setupErr);
+            }
+        }
+
+        codeRunning = true;
+        statusEl.className = 'compile-status compile-ok';
+        statusEl.textContent = '✓ CODE UPLOADED & RUNNING';
+
+        // Auto-start simulation
+        if (!state.running) toggleRun();
+
+    } catch (err) {
+        console.error('Compile error:', err);
+        codeRunning = false;
+        uploadedSetupFn = null;
+        uploadedLoopFn = null;
+        statusEl.className = 'compile-status compile-err';
+        statusEl.textContent = '✗ ERROR: ' + err.message;
+    }
+}
+
+// ── PYTHON CODE ENGINE ──
+let pyodide = null;
+let pyodideLoading = false;
+let pyodideReady = false;
+
+async function loadPyodide() {
+    if (pyodideReady || pyodideLoading) return;
+    pyodideLoading = true;
+    const statusEl = document.getElementById('pyodide-status-text');
+    statusEl.textContent = 'Loading Pyodide...';
+
+    try {
+        // Load Pyodide from CDN
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load Pyodide script'));
+            document.head.appendChild(script);
+        });
+
+        statusEl.textContent = 'Initializing Python...';
+        pyodide = await loadPyodide({
+            indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/'
+        });
+
+        pyodideReady = true;
+        statusEl.textContent = '✓ Python 3 Ready';
+        statusEl.style.color = 'var(--green)';
+    } catch (err) {
+        pyodideLoading = false;
+        statusEl.textContent = '✗ Load Failed';
+        statusEl.style.color = 'var(--red)';
+        console.error('Pyodide load error:', err);
+    }
+}
+
+// Python setup/loop functions stored as JS-callable wrappers
+let pythonSetupFn = null;
+let pythonLoopFn = null;
+
+async function uploadPythonCode() {
+    const code = document.getElementById('python-code').value.trim();
+    const statusEl = document.getElementById('compile-status');
+
+    if (!pyodideReady) {
+        statusEl.className = 'compile-status compile-warn';
+        statusEl.textContent = '⟳ Loading Python runtime...';
+        await loadPyodide();
+        if (!pyodideReady) {
+            statusEl.className = 'compile-status compile-err';
+            statusEl.textContent = '✗ Python runtime unavailable';
+            return;
+        }
+    }
+
+    try {
+        codeRunning = false;
+        clearConsole();
+        statusEl.className = 'compile-status compile-info';
+        statusEl.textContent = '⟳ COMPILING PYTHON...';
+
+        // Inject Python API
+        const pythonAPI = `
+import js
+
+def set_motor(left, right):
+    js.globalThis._api_setMotor(left, right)
+
+def digital_read(pin):
+    return int(js.globalThis._api_digitalRead(pin))
+
+def analog_read(pin):
+    return int(js.globalThis._api_analogRead(pin))
+
+def serial_print(text):
+    js._api_Serial.print(str(text))
+
+def serial_println(text):
+    js._api_Serial.println(str(text))
+
+def millis():
+    import js
+    return js.performance.now()
+
+def micros():
+    return js.performance.now() * 1000
+
+def constrain(val, min_v, max_v):
+    return max(min_v, min(max_v, val))
+
+def map_val(x, in_min, in_max, out_min, out_max):
+    if in_max == in_min: return out_min
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
+
+import math
+
+HIGH = 1
+LOW = 0
+INPUT = 0
+OUTPUT = 1
+A0, A1, A2, A3, A4, A5 = 0, 1, 2, 3, 4, 5
+
+# User code
+${code}
+`;
+
+        await pyodide.runPythonAsync(pythonAPI);
+
+        // Get references to setup() and loop()
+        const pyGlobals = pyodide.globals;
+        const hasSetup = pyGlobals.has('setup');
+        const hasLoop = pyGlobals.has('loop');
+
+        if (!hasLoop) {
+            statusEl.className = 'compile-status compile-err';
+            statusEl.textContent = '✗ NO loop() FUNCTION FOUND';
+            return;
+        }
+
+        pythonSetupFn = hasSetup ? () => pyGlobals.get('setup')() : null;
+        pythonLoopFn = () => pyGlobals.get('loop')();
+
+        if (pythonSetupFn) {
+            try {
+                pythonSetupFn();
+            } catch (e) {
+                statusEl.className = 'compile-status compile-warn';
+                statusEl.textContent = '⚠ SETUP WARN: ' + e.message;
+            }
+        }
+
+        // Wrap for unified interface
+        uploadedSetupFn = pythonSetupFn;
+        uploadedLoopFn = pythonLoopFn;
+        codeRunning = true;
+
+        statusEl.className = 'compile-status compile-ok';
+        statusEl.textContent = '✓ PYTHON CODE RUNNING';
+
+        if (!state.running) toggleRun();
+
+    } catch (err) {
+        console.error('Python compile error:', err);
+        codeRunning = false;
+        uploadedSetupFn = null;
+        uploadedLoopFn = null;
+        statusEl.className = 'compile-status compile-err';
+        // Extract meaningful error from Python traceback
+        const msg = err.message || String(err);
+        const lines = msg.split('\n').filter(l => l.trim());
+        statusEl.textContent = '✗ ' + (lines[lines.length - 1] || msg).substring(0, 80);
+    }
+}
+
+function setCodeMode(mode) {
+    codeMode = mode;
+    document.getElementById('mode-arduino').classList.toggle('active', mode === 'arduino');
+    document.getElementById('mode-python').classList.toggle('active', mode === 'python');
+    document.getElementById('arduino-panel').style.display = mode === 'arduino' ? '' : 'none';
+    document.getElementById('python-panel').style.display = mode === 'python' ? '' : 'none';
+    document.getElementById('python-status').style.display = mode === 'python' ? '' : 'none';
+
+    if (mode === 'python' && !pyodideLoading) {
+        loadPyodide();
+    }
+}
+
+function uploadCode() {
+    if (codeMode === 'python') {
+        uploadPythonCode();
+    } else {
+        uploadArduinoCode();
+    }
+}
+
+function stopCode() {
+    codeRunning = false;
+    uploadedSetupFn = null;
+    uploadedLoopFn = null;
+    pythonSetupFn = null;
+    pythonLoopFn = null;
+    robot.leftPWM = 0;
+    robot.rightPWM = 0;
+    robot.speed = 0;
+    robot.angularVel = 0;
+    const statusEl = document.getElementById('compile-status');
+    statusEl.className = 'compile-status compile-warn';
+    statusEl.textContent = '■ CODE STOPPED';
+}
+
+function serialLog(msg) {
+    serialBuffer += msg;
+    const el = document.getElementById('serial-console');
+    if (el) {
+        el.value += msg;
+        el.scrollTop = el.scrollHeight;
+    }
+}
+
+function clearConsole() {
+    serialBuffer = '';
+    const el = document.getElementById('serial-console');
+    if (el) el.value = '';
+}
+
+// ─────────────────────────────────────────────
+// CODE TEMPLATES
+// ─────────────────────────────────────────────
+const codeTemplates = {
+    linefollow: `// === Basic Line Follower ===
+let baseSpeed = 180;
+
+function setup() {
+    Serial.println("Basic Line Follower Ready");
+}
+
+function loop() {
+    let s0 = digitalRead(0);
+    let s1 = digitalRead(1);
+    let s2 = digitalRead(2); // center
+    let s3 = digitalRead(3);
+    let s4 = digitalRead(4);
+
+    // Weighted position error
+    let error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2);
+
+    let Kp = 35;
+    let correction = error * Kp;
+
+    setMotor(baseSpeed - correction, baseSpeed + correction);
+}`,
+
+    pid: `// === PID Line Follower ===
+let baseSpeed = 180;
+let Kp = 40, Ki = 0.01, Kd = 15;
+let integral = 0, lastError = 0;
+
+function setup() {
+    Serial.println("PID Controller Active");
+}
+
+function loop() {
+    let s0 = digitalRead(0);
+    let s1 = digitalRead(1);
+    let s2 = digitalRead(2);
+    let s3 = digitalRead(3);
+    let s4 = digitalRead(4);
+
+    let error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2);
+
+    integral += error;
+    integral = constrain(integral, -100, 100);
+
+    let derivative = error - lastError;
+    lastError = error;
+
+    let correction = (Kp * error) + (Ki * integral) + (Kd * derivative);
+    setMotor(baseSpeed - correction, baseSpeed + correction);
+}`,
+
+    advanced: `// === Advanced: State Machine + PID ===
+let baseSpeed = 190;
+let Kp = 45, Ki = 0.005, Kd = 20;
+let integral = 0, lastError = 0;
+let state = "TRACKING";
+let lostTimer = 0;
+
+function setup() {
+    Serial.println("Advanced Line Follower v2");
+}
+
+function loop() {
+    let s0 = digitalRead(0);
+    let s1 = digitalRead(1);
+    let s2 = digitalRead(2);
+    let s3 = digitalRead(3);
+    let s4 = digitalRead(4);
+
+    let allOff = (s0 + s1 + s2 + s3 + s4) === 0;
+    let allOn  = (s0 + s1 + s2 + s3 + s4) === 5;
+
+    if (allOff) {
+        // Lost the line
+        lostTimer++;
+        if (lostTimer > 20) {
+            state = "LOST";
+            // Search: steer toward last known side
+            let dir = lastError > 0 ? 80 : -80;
+            setMotor(baseSpeed - dir, baseSpeed + dir);
+            return;
+        }
+    } else {
+        lostTimer = 0;
+        state = "TRACKING";
+    }
+
+    let error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2);
+
+    integral += error;
+    integral = constrain(integral, -50, 50);
+
+    let derivative = error - lastError;
+    lastError = error;
+
+    let correction = (Kp * error) + (Ki * integral) + (Kd * derivative);
+    setMotor(baseSpeed - correction, baseSpeed + correction);
+}`,
+
+    maze: `// === Maze Solver (Left Hand Rule) ===
+let speed = 160;
+
+function setup() {
+    Serial.println("Maze Solver Ready");
+}
+
+function loop() {
+    let s0 = digitalRead(0); // leftmost
+    let s1 = digitalRead(1);
+    let s2 = digitalRead(2); // center
+    let s3 = digitalRead(3);
+    let s4 = digitalRead(4); // rightmost
+
+    // Intersection detection
+    if (s0 && s1 && s2 && s3 && s4) {
+        // T-junction or cross: prefer left
+        setMotor(-speed, speed);
+        return;
+    }
+
+    // Dead end
+    if (!s0 && !s1 && !s2 && !s3 && !s4) {
+        setMotor(-speed, speed); // U-turn
+        return;
+    }
+
+    // Follow line with weighted error
+    let error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2);
+    let correction = error * 50;
+    setMotor(speed - correction, speed + correction);
+}`
+};
+
+const pythonTemplates = {
+    linefollow: `# Basic Line Follower
+base_speed = 180
+
+def setup():
+    serial_println("Basic Line Follower Ready (Python)")
+
+def loop():
+    s0 = digital_read(0)
+    s1 = digital_read(1)
+    s2 = digital_read(2)  # center
+    s3 = digital_read(3)
+    s4 = digital_read(4)
+
+    error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2)
+    correction = error * 35
+    set_motor(base_speed - correction, base_speed + correction)`,
+
+    pid: `# PID Line Follower
+import math
+
+base_speed = 180
+Kp = 40.0
+Ki = 0.01
+Kd = 15.0
+integral = 0.0
+last_error = 0.0
+
+def setup():
+    serial_println("PID Controller Active (Python)")
+
+def loop():
+    global integral, last_error
+
+    s0 = digital_read(0)
+    s1 = digital_read(1)
+    s2 = digital_read(2)
+    s3 = digital_read(3)
+    s4 = digital_read(4)
+
+    error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2)
+    integral += error
+    integral = constrain(integral, -100, 100)
+    derivative = error - last_error
+    last_error = error
+
+    correction = (Kp * error) + (Ki * integral) + (Kd * derivative)
+    set_motor(base_speed - correction, base_speed + correction)`,
+
+    advanced: `# Advanced: State Machine PID (Python)
+base_speed = 190
+Kp = 45.0
+Ki = 0.005
+Kd = 20.0
+integral = 0.0
+last_error = 0.0
+lost_timer = 0
+
+def setup():
+    serial_println("Advanced Python Controller Active")
+
+def loop():
+    global integral, last_error, lost_timer
+
+    s0 = digital_read(0)
+    s1 = digital_read(1)
+    s2 = digital_read(2)
+    s3 = digital_read(3)
+    s4 = digital_read(4)
+
+    total = s0 + s1 + s2 + s3 + s4
+
+    if total == 0:
+        lost_timer += 1
+        if lost_timer > 20:
+            d = 80 if last_error > 0 else -80
+            set_motor(base_speed - d, base_speed + d)
+            return
+    else:
+        lost_timer = 0
+
+    error = (s0 * -2) + (s1 * -1) + (s2 * 0) + (s3 * 1) + (s4 * 2)
+    integral = constrain(integral + error, -50, 50)
+    derivative = error - last_error
+    last_error = error
+
+    correction = (Kp * error) + (Ki * integral) + (Kd * derivative)
+    set_motor(base_speed - correction, base_speed + correction)`
+};
+
+function loadTemplate(name) {
+    const code = codeTemplates[name];
+    if (code) {
+        document.getElementById('arduino-code').value = code;
+        const statusEl = document.getElementById('compile-status');
+        statusEl.className = 'compile-status compile-info';
+        statusEl.textContent = '◈ TEMPLATE LOADED — Press UPLOAD';
+    }
+}
+
+function loadPythonTemplate(name) {
+    const code = pythonTemplates[name];
+    if (code) {
+        document.getElementById('python-code').value = code;
+        const statusEl = document.getElementById('compile-status');
+        statusEl.className = 'compile-status compile-info';
+        statusEl.textContent = '◈ TEMPLATE LOADED — Press UPLOAD';
+    }
+}
+
+// ─────────────────────────────────────────────
+// TRACK BUILDING
+// ─────────────────────────────────────────────
+function buildTrackPath(type) {
+    const pts = [];
+    switch(type) {
+        case 'oval': {
+            const N = 160, rx = 1.5, rz = 1.0;
+            for (let i = 0; i < N; i++) {
+                const a = (i / N) * Math.PI * 2;
+                pts.push({ x: Math.cos(a) * rx, z: Math.sin(a) * rz });
+            }
+            break;
+        }
+        case 'figure8': {
+            const N = 200;
+            for (let i = 0; i < N; i++) {
+                const t = (i / N) * Math.PI * 2;
+                pts.push({ x: Math.sin(t) * 1.3, z: Math.sin(t * 2) * 0.75 });
+            }
+            break;
+        }
+        case 'zigzag': {
+            const segments = [
+                {x:-1.8,z:-0.9},{x:-1.0,z:-0.9},{x:-0.5,z:0},{x:0.5,z:0},
+                {x:1.0,z:0.9},{x:1.8,z:0.9},{x:1.8,z:-0.9},{x:1.0,z:-0.9},
+                {x:0.5,z:0},{x:-0.5,z:0},{x:-1.0,z:0.9},{x:-1.8,z:0.9},{x:-1.8,z:-0.9}
+            ];
+            for (let i = 0; i < segments.length - 1; i++) {
+                const a = segments[i], b = segments[i+1];
+                const d = Math.hypot(b.x - a.x, b.z - a.z);
+                const steps = Math.max(20, Math.round(d * 50));
+                for (let j = 0; j < steps; j++) {
+                    const t = j / steps;
+                    pts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+                }
+            }
+            break;
+        }
+        case 'maze': {
+            const seg = [
+                {x:-1.6,z:-1.0},{x:1.6,z:-1.0},{x:1.6,z:-0.3},
+                {x:0.6,z:-0.3},{x:0.6,z:1.0},{x:-0.6,z:1.0},
+                {x:-0.6,z:0.3},{x:-1.6,z:0.3},{x:-1.6,z:-1.0}
+            ];
+            for (let i = 0; i < seg.length - 1; i++) {
+                const a = seg[i], b = seg[i+1];
+                const d = Math.hypot(b.x - a.x, b.z - a.z);
+                const steps = Math.max(10, Math.round(d * 50));
+                for (let j = 0; j < steps; j++) {
+                    const t = j / steps;
+                    pts.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+                }
+            }
+            break;
+        }
+        case 'spiral': {
+            const N = 300;
+            for (let i = 0; i < N; i++) {
+                const t = (i / N) * Math.PI * 7;
+                const r = 0.2 + t * 0.22;
+                if (r > 1.8) break;
+                pts.push({ x: Math.cos(t) * r, z: Math.sin(t) * r * 0.65 });
+            }
+            // Pad end
+            for (let i = 0; i < 30; i++) {
+                if (pts.length > 0) pts.push({...pts[pts.length-1]});
+            }
+            break;
+        }
+        default: {
+            const N = 100, rx = 1.3, rz = 0.8;
+            for (let i = 0; i < N; i++) {
+                const a = (i / N) * Math.PI * 2;
+                pts.push({ x: Math.cos(a) * rx, z: Math.sin(a) * rz });
+            }
+        }
+    }
+    return pts;
+}
+
+function buildTrackMesh(type) {
+    // Remove old track
+    if (trackMesh) {
+        scene.remove(trackMesh);
+        trackMesh.geometry.dispose();
+        trackMesh.material.dispose();
+    }
+    // Remove old edge lines
+    trackEdgeLines.forEach(l => {
+        scene.remove(l);
+        l.geometry.dispose();
+        l.material.dispose();
+    });
+    trackEdgeLines = [];
+
+    trackPath = buildTrackPath(type);
+    const W = state.trackWidth / 400;
+    const N = trackPath.length;
+
+    const verts = [], uvs = [], indices = [];
+    const leftEdge = [], rightEdge = [];
+
+    for (let i = 0; i < N; i++) {
+        const cur = trackPath[i];
+        const nxt = trackPath[(i + 1) % N];
+        const dx = nxt.x - cur.x, dz = nxt.z - cur.z;
+        const len = Math.hypot(dx, dz) || 0.001;
+        const nx = -dz / len * W, nz = dx / len * W;
+
+        verts.push(cur.x - nx, 0.001, cur.z - nz);
+        verts.push(cur.x + nx, 0.001, cur.z + nz);
+        uvs.push(0, i / N, 1, i / N);
+
+        leftEdge.push(new THREE.Vector3(cur.x - nx, 0.003, cur.z - nz));
+        rightEdge.push(new THREE.Vector3(cur.x + nx, 0.003, cur.z + nz));
+
+        if (i < N - 1) {
+            const a = i * 2, b = i * 2 + 1, c = (i+1)*2, d = (i+1)*2+1;
+            indices.push(a, b, c, b, d, c);
+        }
+    }
+    // Close the loop (except spiral)
+    if (type !== 'spiral') {
+        const a = (N-1)*2, b = (N-1)*2+1;
+        indices.push(a, b, 0, b, 1, 0);
+        leftEdge.push(leftEdge[0].clone());
+        rightEdge.push(rightEdge[0].clone());
+    }
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geom.setIndex(indices);
+    geom.computeVertexNormals();
+
+    const mat = new THREE.MeshLambertMaterial({
+        color: 0x111111,
+        side: THREE.DoubleSide
+    });
+    trackMesh = new THREE.Mesh(geom, mat);
+    trackMesh.receiveShadow = true;
+    scene.add(trackMesh);
+
+    // Edge glow lines
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x0044aa, transparent: true, opacity: 0.5 });
+    [leftEdge, rightEdge].forEach(edge => {
+        if (edge.length < 2) return;
+        const eg = new THREE.BufferGeometry().setFromPoints(edge);
+        const el = new THREE.Line(eg, edgeMat.clone());
+        scene.add(el);
+        trackEdgeLines.push(el);
+    });
+
+    // Place robot at start
+    const sp = trackPath[0] || { x: 0, z: 0 };
+    robot.x = sp.x;
+    robot.z = sp.z;
+    robot.y = 0.04;
+    robot.angle = 0;
+    robot.t = 0;
+    robot.speed = 0;
+    robot.angularVel = 0;
+    robot.leftPWM = 0;
+    robot.rightPWM = 0;
+
+    // Orient toward second point
+    if (trackPath.length > 1) {
+        const np = trackPath[1];
+        robot.angle = Math.atan2(np.x - sp.x, np.z - sp.z);
+    }
+}
+
+// ─────────────────────────────────────────────
+// ROBOT MESH
+// ─────────────────────────────────────────────
+function buildRobotMesh() {
+    if (robotMesh) {
+        scene.remove(robotMesh);
+        // dispose children
+        robotMesh.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) child.material.dispose();
+        });
+    }
+    wheelMeshes = [];
+    sensorMeshes = [];
+    sensorGlows = [];
+
+    robotMesh = new THREE.Group();
+
+    // Main chassis
+    const chGeom = new THREE.BoxGeometry(0.15, 0.028, 0.20);
+    const chMat = new THREE.MeshPhongMaterial({
+        color: 0x0a1e40, emissive: 0x001122,
+        specular: 0x00d4ff, shininess: 80
+    });
+    chassisMesh = new THREE.Mesh(chGeom, chMat);
+    chassisMesh.castShadow = true;
+    chassisMesh.position.y = 0.014;
+    robotMesh.add(chassisMesh);
+
+    // Chassis edge glow
+    const edgeGeom = new THREE.EdgesGeometry(chGeom);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.6 });
+    const edgeLine = new THREE.LineSegments(edgeGeom, edgeMat);
+    edgeLine.position.y = 0.014;
+    robotMesh.add(edgeLine);
+
+    // Wheels (4)
+    const wGeom = new THREE.CylinderGeometry(config.WHEEL_RADIUS, config.WHEEL_RADIUS, 0.012, 12);
+    const wMat = new THREE.MeshPhongMaterial({ color: 0x222233, emissive: 0x111122 });
+    const wheelPositions = [
+        [-0.085, 0, -0.07], [0.085, 0, -0.07],
+        [-0.085, 0, 0.07],  [0.085, 0, 0.07]
+    ];
+    for (const [wx, wy, wz] of wheelPositions) {
+        const w = new THREE.Mesh(wGeom, wMat.clone());
+        w.rotation.z = Math.PI / 2;
+        w.position.set(wx, config.WHEEL_RADIUS, wz);
+        w.castShadow = true;
+        robotMesh.add(w);
+        wheelMeshes.push(w);
+    }
+
+    // PCB board (green)
+    const pcbGeom = new THREE.BoxGeometry(0.12, 0.003, 0.16);
+    const pcbMat = new THREE.MeshLambertMaterial({ color: 0x004422, emissive: 0x002211 });
+    const pcb = new THREE.Mesh(pcbGeom, pcbMat);
+    pcb.position.y = 0.030;
+    robotMesh.add(pcb);
+
+    // LED indicator
+    const ledGeom = new THREE.SphereGeometry(0.008, 8, 8);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+    const led = new THREE.Mesh(ledGeom, ledMat);
+    led.position.set(0, 0.036, -0.07);
+    robotMesh.add(led);
+
+    buildSensorMeshes();
+
+    scene.add(robotMesh);
+}
+
+function buildSensorMeshes() {
+    // Remove old sensors from robotMesh
+    sensorMeshes.forEach(m => robotMesh.remove(m));
+    sensorGlows.forEach(m => robotMesh.remove(m));
+    sensorMeshes = [];
+    sensorGlows = [];
+
+    const N = robot.sensorCount;
+    const spacing = robot.sensorSpacing / 1000;
+    const forwardOffset = config.SENSOR_FORWARD_OFFSET;
+
+    for (let i = 0; i < N; i++) {
+        const ox = (i - (N - 1) / 2) * spacing;
+
+        // Sensor body
+        const sg = new THREE.BoxGeometry(0.008, 0.004, 0.008);
+        const sm = new THREE.MeshPhongMaterial({
+            color: 0xffaa00, emissive: 0x110000, shininess: 50
+        });
+        const s = new THREE.Mesh(sg, sm);
+        s.position.set(ox, config.SENSOR_HEIGHT, forwardOffset);
+        robotMesh.add(s);
+        sensorMeshes.push(s);
+
+        // Glow sphere
+        const gg = new THREE.SphereGeometry(0.007, 8, 8);
+        const gm = new THREE.MeshBasicMaterial({
+            color: 0xffaa00, transparent: true, opacity: 0.15
+        });
+        const g = new THREE.Mesh(gg, gm);
+        g.position.set(ox, config.SENSOR_HEIGHT, forwardOffset);
+        robotMesh.add(g);
+        sensorGlows.push(g);
+    }
+}
+
+// ─────────────────────────────────────────────
+// CAMERA SETUP
+// ─────────────────────────────────────────────
+function setupOrbitControls() {
+    const canvas = document.getElementById('sim');
+
+    canvas.addEventListener('mousedown', e => {
+        if (state.cameraMode !== 'orbit' && state.cameraMode !== 'free') return;
+        isDragging = true;
+        lastMouse = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastMouse.x;
+        const dy = e.clientY - lastMouse.y;
+        lastMouse = { x: e.clientX, y: e.clientY };
+        camTheta -= dx * 0.007;
+        camPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, camPhi + dy * 0.007));
+    });
+
+    window.addEventListener('mouseup', () => { isDragging = false; });
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        camDist = Math.max(0.8, Math.min(8, camDist + e.deltaY * 0.005));
+    }, { passive: false });
+
+    // Touch support
+    let lastTouchDist = 0;
+    canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        } else if (e.touches.length === 2) {
+            lastTouchDist = Math.hypot(
+                e.touches[1].clientX - e.touches[0].clientX,
+                e.touches[1].clientY - e.touches[0].clientY
+            );
+        }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            const dx = e.touches[0].clientX - lastMouse.x;
+            const dy = e.touches[0].clientY - lastMouse.y;
+            lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            camTheta -= dx * 0.007;
+            camPhi = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, camPhi + dy * 0.007));
+        } else if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[1].clientX - e.touches[0].clientX,
+                e.touches[1].clientY - e.touches[0].clientY
+            );
+            camDist = Math.max(0.8, Math.min(8, camDist - (dist - lastTouchDist) * 0.01));
+            lastTouchDist = dist;
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => { isDragging = false; });
+}
+
+function updateCamera() {
+    if (!camera) return;
+    switch (state.cameraMode) {
+        case 'orbit':
+        case 'free': {
+            const x = camDist * Math.sin(camPhi) * Math.sin(camTheta);
+            const y = camDist * Math.cos(camPhi);
+            const z = camDist * Math.sin(camPhi) * Math.cos(camTheta);
+            camera.position.set(
+                camTarget.x + x,
+                camTarget.y + y,
+                camTarget.z + z
+            );
+            camera.lookAt(camTarget.x, camTarget.y, camTarget.z);
+            break;
+        }
+        case 'follow': {
+            const behindX = robot.x - Math.sin(robot.angle) * 0.5;
+            const behindZ = robot.z - Math.cos(robot.angle) * 0.5;
+            camera.position.set(behindX, 0.4, behindZ);
+            camera.lookAt(
+                robot.x + Math.sin(robot.angle) * 0.3,
+                0.05,
+                robot.z + Math.cos(robot.angle) * 0.3
+            );
+            break;
+        }
+        case 'top': {
+            camera.position.set(robot.x, 4.5, robot.z + 0.001);
+            camera.lookAt(robot.x, 0, robot.z);
+            break;
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// SENSOR COMPUTATION
+// ─────────────────────────────────────────────
+function getClosestTrackPoint(px, pz) {
+    let minDist = Infinity, minIdx = 0;
+    for (let i = 0; i < trackPath.length; i++) {
+        const tp = trackPath[i];
+        const d = Math.hypot(px - tp.x, pz - tp.z);
+        if (d < minDist) { minDist = d; minIdx = i; }
+    }
+    return { dist: minDist, idx: minIdx };
+}
+
+function computeSensors(rx, rz, angle, N, spacingMm) {
+    const halfW = (state.trackWidth / 400) * 1.1;
+    const spacing = spacingMm / 1000;
+    const forwardOff = config.SENSOR_FORWARD_OFFSET;
+    const result = [];
+
+    for (let i = 0; i < N; i++) {
+        const ox = (i - (N - 1) / 2) * spacing;
+        // World position of sensor i
+        const sx = rx + Math.cos(angle + Math.PI/2) * ox + Math.sin(angle) * forwardOff;
+        const sz = rz - Math.sin(angle + Math.PI/2) * ox + Math.cos(angle) * forwardOff;
+        const { dist } = getClosestTrackPoint(sx, sz);
+        result.push(dist < halfW ? 1 : 0);
+    }
+    return result;
+}
+
+// ─────────────────────────────────────────────
+// PID CONTROLLER (Built-in)
+// ─────────────────────────────────────────────
+function computePID(sensors, dt) {
+    const N = sensors.length;
+    const center = (N - 1) / 2;
+    let sum = 0, cnt = 0;
+
+    for (let i = 0; i < N; i++) {
+        if (sensors[i]) {
+            sum += (center - i);
+            cnt++;
+        }
+    }
+
+    const error = cnt > 0 ? sum / cnt :
+                  (robot.pidLastError >= 0 ? center : -center);
+
+    robot.pidIntegral = Math.max(-5, Math.min(5, robot.pidIntegral + error * dt));
+    const dtSafe = Math.max(dt, 0.001);
+    const derivative = (error - robot.pidLastError) / dtSafe;
+    robot.pidLastError = error;
+    robot.pidError = error;
+
+    return robot.pid.kp * error + robot.pid.ki * robot.pidIntegral + robot.pid.kd * derivative;
+}
+
+// ─────────────────────────────────────────────
+// SIMULATION STEP
+// ─────────────────────────────────────────────
+function simStep(dt) {
+    if (!state.running || state.paused) return;
+    if (state.slowMotion) dt *= 0.3;
+    dt = Math.min(dt, 0.033);
+
+    // Update sensor readings
+    robot.sensors = computeSensors(robot.x, robot.z, robot.angle, robot.sensorCount, robot.sensorSpacing);
+
+    if (codeRunning && uploadedLoopFn) {
+        // User code controls the robot
+        try {
+            uploadedLoopFn();
+        } catch (err) {
+            console.error('Runtime error:', err);
+            serialLog('[ERR] ' + err.message + '\n');
+            codeRunning = false;
+            uploadedLoopFn = null;
+            const statusEl = document.getElementById('compile-status');
+            statusEl.className = 'compile-status compile-err';
+            statusEl.textContent = '✗ RUNTIME ERROR: ' + err.message;
+        }
+        // robot.speed and robot.angularVel are set by _api_setMotor
+        robot.pidError = getLineError();
+    } else {
+        // Built-in PID controller
+        const correction = computePID(robot.sensors, dt);
+        const baseV = (robot.maxSpeed / 1000) * robot.friction;
+        const k = 0.055;
+
+        let lV = baseV - correction * k;
+        let rV = baseV + correction * k;
+
+        // Clamp to max velocity
+        const maxV = baseV * 1.5;
+        lV = Math.max(-maxV, Math.min(maxV, lV));
+        rV = Math.max(-maxV, Math.min(maxV, rV));
+
+        // Differential drive kinematics
+        robot.speed = (Math.abs(lV) + Math.abs(rV)) / 2;
+        robot.angularVel = (rV - lV) / robot.wheelBase;
+
+        // PWM display (map velocity to -255..255 range)
+        robot.leftPWM  = Math.round(Math.max(-255, Math.min(255, lV / baseV * 255)));
+        robot.rightPWM = Math.round(Math.max(-255, Math.min(255, rV / baseV * 255)));
+    }
+
+    // Physics integration — differential drive model
+    const timeScale = 2.8;
+    robot.angle += robot.angularVel * dt * timeScale;
+
+    // Normalize angle
+    while (robot.angle >  Math.PI) robot.angle -= Math.PI * 2;
+    while (robot.angle < -Math.PI) robot.angle += Math.PI * 2;
+
+    // Position update
+    const moveX = Math.sin(robot.angle) * robot.speed * dt * timeScale;
+    const moveZ = Math.cos(robot.angle) * robot.speed * dt * timeScale;
+    robot.x += moveX;
+    robot.z += moveZ;
+
+    state.totalDistance += Math.hypot(moveX, moveZ);
+
+    // Animate wheels
+    const lNorm = robot.leftPWM / 255;
+    const rNorm = robot.rightPWM / 255;
+    for (const w of wheelMeshes) {
+        w.rotation.y += (lNorm + rNorm) / 2 * dt * 15;
+    }
+
+    // Update sensor visuals
+    for (let i = 0; i < sensorGlows.length && i < robot.sensors.length; i++) {
+        const active = robot.sensors[i];
+        sensorGlows[i].material.opacity = active ? 0.7 : 0.1;
+        sensorGlows[i].material.color.setHex(active ? 0xff2200 : 0xffaa00);
+    }
+    for (let i = 0; i < sensorMeshes.length && i < robot.sensors.length; i++) {
+        const active = robot.sensors[i];
+        sensorMeshes[i].material.emissive.setHex(active ? 0xff1100 : 0x110000);
+        sensorMeshes[i].material.color.setHex(active ? 0xffffff : 0xffaa00);
+    }
+
+    // Lap detection
+    if (trackPath.length > 10 && state.trackType !== 'spiral') {
+        const { idx } = getClosestTrackPoint(robot.x, robot.z);
+        const lapFrac = idx / trackPath.length;
+        if (lapFrac > 0.96 && robot.t < 0.15) {
+            state.lap++;
+            const now = performance.now();
+            if (state.lapStartTime > 0) {
+                const lapTime = (now - state.lapStartTime) / 1000;
+                if (!state.bestLap || lapTime < state.bestLap) {
+                    state.bestLap = lapTime;
+                    document.getElementById('t-bestlap').textContent = lapTime.toFixed(2) + 's';
+                }
+                document.getElementById('t-laptime').textContent = lapTime.toFixed(2) + 's';
+            }
+            state.lapStartTime = now;
+            document.getElementById('t-lap').textContent = state.lap;
+        }
+        robot.t = lapFrac;
+    }
+
+    // Update chart data
+    chartData.error.push(robot.pidError);
+    chartData.error.shift();
+    chartData.speed.push(robot.speed * 100);
+    chartData.speed.shift();
+    chartData.corr.push(robot.angularVel);
+    chartData.corr.shift();
+}
+
+function getLineError() {
+    let sum = 0, cnt = 0;
+    const center = (robot.sensors.length - 1) / 2;
+    for (let i = 0; i < robot.sensors.length; i++) {
+        if (robot.sensors[i]) { sum += (center - i); cnt++; }
+    }
+    return cnt > 0 ? sum / cnt : (robot.pidLastError || 0);
+}
+
+// ─────────────────────────────────────────────
+// ROBOT MESH UPDATE
+// ─────────────────────────────────────────────
+function updateRobotMesh() {
+    if (!robotMesh) return;
+    robotMesh.position.set(robot.x, robot.y, robot.z);
+    robotMesh.rotation.y = -robot.angle;
+}
+
+// ─────────────────────────────────────────────
+// MINI CHARTS
+// ─────────────────────────────────────────────
+function drawMiniChart(id, data, color, minV, maxV) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const W = canvas.offsetWidth || canvas.clientWidth || 200;
+    const H = canvas.offsetHeight || canvas.clientHeight || 40;
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== H) canvas.height = H;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    // Background
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Zero line
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const zeroY = H - ((0 - minV) / (maxV - minV)) * H;
+    ctx.moveTo(0, zeroY);
+    ctx.lineTo(W, zeroY);
+    ctx.stroke();
+
+    // Data line
+    if (data.length < 2) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = color;
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+        const x = (i / (data.length - 1)) * W;
+        const y = H - ((data[i] - minV) / (maxV - minV)) * H;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+}
+
+// ─────────────────────────────────────────────
+// TELEMETRY UPDATE
+// ─────────────────────────────────────────────
+function updateTelemetry() {
+    document.getElementById('t-speed').textContent  = (robot.speed * 100).toFixed(2) + ' cm/s';
+    document.getElementById('t-heading').textContent = ((robot.angle * 180 / Math.PI + 360) % 360).toFixed(1) + '°';
+    document.getElementById('t-error').textContent  = robot.pidError.toFixed(3);
+    document.getElementById('t-lpwm').textContent   = robot.leftPWM;
+    document.getElementById('t-rpwm').textContent   = robot.rightPWM;
+    document.getElementById('t-dist').textContent   = state.totalDistance.toFixed(2) + ' m';
+
+    // Motor power bars
+    const lp = Math.abs(robot.leftPWM) / 255 * 100;
+    const rp = Math.abs(robot.rightPWM) / 255 * 100;
+    document.getElementById('bar-l').style.width = lp.toFixed(0) + '%';
+    document.getElementById('bar-r').style.width = rp.toFixed(0) + '%';
+    document.getElementById('t-lv').textContent  = lp.toFixed(0) + '%';
+    document.getElementById('t-rv').textContent  = rp.toFixed(0) + '%';
+
+    // Sensor error bar
+    const maxErr = (robot.sensorCount - 1) / 2 || 1;
+    const errPct = 50 + (robot.pidError / maxErr) * 50;
+    document.getElementById('bar-error').style.width = Math.max(0, Math.min(100, errPct)) + '%';
+    document.getElementById('t-cerror').textContent  = robot.pidError.toFixed(2);
+
+    // Binary sensor array display
+    const binStr = '[ ' + robot.sensors.map(s => s || 0).join(' ') + ' ]';
+    document.getElementById('sensor-binary').textContent = binStr;
+}
+
+function updateSensorDisplay() {
+    const cont = document.getElementById('sensor-display');
+    if (!cont) return;
+    cont.innerHTML = '';
+    for (let i = 0; i < robot.sensorCount; i++) {
+        const d = document.createElement('div');
+        d.className = 'sensor-dot' + (robot.sensors[i] ? ' active' : '');
+        d.textContent = i + 1;
+        d.id = 'sdot-' + i;
+        cont.appendChild(d);
+    }
+}
+
+function refreshSensorDots() {
+    for (let i = 0; i < robot.sensorCount; i++) {
+        const d = document.getElementById('sdot-' + i);
+        if (d) d.className = 'sensor-dot' + (robot.sensors[i] ? ' active' : '');
+    }
+}
+
+// ─────────────────────────────────────────────
+// MAIN LOOP
+// ─────────────────────────────────────────────
+let frameCount = 0, fpsTimer = 0, lastTs = 0;
+
+function mainLoop(ts) {
+    requestAnimationFrame(mainLoop);
+
+    if (lastTs === 0) { lastTs = ts; return; }
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+
+    frameCount++;
+    fpsTimer += dt;
+    if (fpsTimer >= 0.5) {
+        const fpsEl = document.getElementById('fps-display');
+        if (fpsEl) fpsEl.textContent = 'FPS: ' + Math.round(frameCount / fpsTimer);
+        frameCount = 0;
+        fpsTimer = 0;
+    }
+
+    simStep(dt);
+    updateRobotMesh();
+    updateCamera();
+
+    if (state.running && !state.paused) {
+        updateTelemetry();
+        refreshSensorDots();
+        drawMiniChart('chart-error', chartData.error, '#00d4ff', -4, 4);
+        drawMiniChart('chart-speed', chartData.speed, '#00ff88', 0, 30);
+        drawMiniChart('chart-corr',  chartData.corr,  '#aa44ff', -5, 5);
+    }
+
+    renderer.render(scene, camera);
+}
+
+// ─────────────────────────────────────────────
+// CONTROL FUNCTIONS
+// ─────────────────────────────────────────────
+function toggleRun() {
+    if (!state.running) {
+        state.running = true;
+        state.paused = false;
+        document.getElementById('btn-run').classList.add('active');
+        document.getElementById('btn-pause').classList.remove('active');
+        const pill = document.getElementById('status-pill');
+        pill.className = 'status-pill pill-running';
+        pill.textContent = 'RUNNING';
+        state.lapStartTime = performance.now();
+    }
+}
+
+function togglePause() {
+    if (!state.running) return;
+    state.paused = !state.paused;
+    document.getElementById('btn-pause').classList.toggle('active', state.paused);
+    const pill = document.getElementById('status-pill');
+    pill.className = 'status-pill ' + (state.paused ? 'pill-paused' : 'pill-running');
+    pill.textContent = state.paused ? 'PAUSED' : 'RUNNING';
+}
+
+function resetSim() {
+    state.running = false;
+    state.paused = false;
+    state.lap = 0;
+    state.totalDistance = 0;
+    state.bestLap = null;
+
+    robot.speed = 0;
+    robot.angularVel = 0;
+    robot.leftPWM = 0;
+    robot.rightPWM = 0;
+    robot.pidIntegral = 0;
+    robot.pidLastError = 0;
+    robot.pidError = 0;
+
+    const sp = trackPath[0] || { x: 0, z: 0 };
+    robot.x = sp.x;
+    robot.z = sp.z;
+    robot.y = 0.04;
+    robot.t = 0;
+
+    if (trackPath.length > 1) {
+        const np = trackPath[1];
+        robot.angle = Math.atan2(np.x - sp.x, np.z - sp.z);
+    }
+
+    document.getElementById('btn-run').classList.remove('active');
+    document.getElementById('btn-pause').classList.remove('active');
+    const pill = document.getElementById('status-pill');
+    pill.className = 'status-pill pill-stopped';
+    pill.textContent = 'STOPPED';
+    document.getElementById('t-laptime').textContent = '--:--';
+    document.getElementById('t-bestlap').textContent = '--:--';
+    document.getElementById('t-dist').textContent = '0.00 m';
+    document.getElementById('t-lap').textContent = '0';
+
+    chartData.error.fill(0);
+    chartData.speed.fill(0);
+    chartData.corr.fill(0);
+
+    updateSensorDisplay();
+    updateTelemetry();
+}
+
+function toggleSlow() {
+    state.slowMotion = !state.slowMotion;
+    const btn = document.getElementById('btn-slow');
+    btn.classList.toggle('active', state.slowMotion);
+    btn.textContent = state.slowMotion ? '0.3× SLOW' : '1.0× NORM';
+}
+
+function stepSim() {
+    if (!state.running) {
+        state.running = true;
+        state.paused = true;
+    }
+    state.paused = false;
+    simStep(0.016);
+    state.paused = true;
+    updateRobotMesh();
+    updateTelemetry();
+    refreshSensorDots();
+}
+
+function setCamera(mode) {
+    state.cameraMode = mode;
+    ['orbit', 'top', 'follow', 'free'].forEach(m => {
+        const el = document.getElementById('cam-' + m);
+        if (el) el.classList.toggle('active', m === mode);
+    });
+    if (mode === 'top') {
+        camera.position.set(0, 4.5, 0.001);
+        camera.lookAt(0, 0, 0);
+    }
+}
+
+function setTrack(type) {
+    state.trackType = type;
+    buildTrackMesh(type);
+    resetSim();
+    // Update all track buttons
+    document.querySelectorAll('.track-btn').forEach(b => {
+        const id = b.id || '';
+        b.classList.toggle('active', id === 'track-' + type);
+    });
+}
+
+function setTrackWidth(v) {
+    state.trackWidth = +v;
+    document.getElementById('v-twidth').textContent = v + 'px';
+    buildTrackMesh(state.trackType);
+    resetSim();
+}
+
+function updateConfig(key, v, vid, unit = '', fix = 0) {
+    robot[key] = fix > 0 ? parseFloat(v) : parseInt(v);
+    document.getElementById(vid).textContent = v + (unit || '');
+}
+
+function updateConfigF(key, v, vid, unit, fix) {
+    robot[key] = parseFloat(v);
+    document.getElementById(vid).textContent = parseFloat(v).toFixed(fix) + (unit || '');
+}
+
+function updateSensorCount(v) {
+    robot.sensorCount = parseInt(v);
+    document.getElementById('v-scount').textContent = v;
+    robot.sensors = Array(robot.sensorCount).fill(0);
+    buildSensorMeshes();
+    updateSensorDisplay();
+}
+
+function updatePID(k, v) {
+    const val = parseFloat(v) / 100;
+    robot.pid[k] = val;
+    document.getElementById('v-' + k).textContent = val.toFixed(2);
+}
+
+// ─────────────────────────────────────────────
+// THREE.JS INIT
+// ─────────────────────────────────────────────
+function initThree() {
+    const canvas = document.getElementById('sim');
+    const container = document.getElementById('viewport-container');
+
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setClearColor(0x020408);
+
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x020408, 0.12);
+
+    camera = new THREE.PerspectiveCamera(55, 1, 0.01, 25);
+    camera.position.set(0, 2.8, 3.5);
+    camera.lookAt(0, 0, 0);
+
+    function resize() {
+        const w = container.clientWidth, h = container.clientHeight;
+        if (w === 0 || h === 0) return;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x223355, 1.2));
+
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(3, 6, 4);
+    dir.castShadow = true;
+    dir.shadow.mapSize.set(2048, 2048);
+    dir.shadow.camera.near = 0.5;
+    dir.shadow.camera.far = 20;
+    dir.shadow.camera.left = -5;
+    dir.shadow.camera.right = 5;
+    dir.shadow.camera.top = 5;
+    dir.shadow.camera.bottom = -5;
+    scene.add(dir);
+
+    const cyanL = new THREE.PointLight(0x00d4ff, 1.0, 6);
+    cyanL.position.set(-1.5, 0.5, 0);
+    scene.add(cyanL);
+
+    const purpL = new THREE.PointLight(0xaa44ff, 0.7, 6);
+    purpL.position.set(1.5, 0.5, 0);
+    scene.add(purpL);
+
+    // Ground
+    const gMat = new THREE.MeshLambertMaterial({ color: 0x0a0e1a });
+    const gGeom = new THREE.PlaneGeometry(14, 14, 48, 48);
+    groundMesh = new THREE.Mesh(gGeom, gMat);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    // Grid
+    gridHelper = new THREE.GridHelper(12, 48, 0x0a2040, 0x050e1a);
+    gridHelper.position.y = 0.0005;
+    scene.add(gridHelper);
+
+    buildRobotMesh();
+    buildTrackMesh(state.trackType);
+    setupOrbitControls();
+    updateSensorDisplay();
+    updateTelemetry();
+
+    requestAnimationFrame(mainLoop);
+}
+
+// ─────────────────────────────────────────────
+// KEYBOARD SHORTCUTS
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    switch(e.key.toLowerCase()) {
+        case ' ':
+            e.preventDefault();
+            if (state.running) togglePause();
+            else toggleRun();
+            break;
+        case 'r':
+            resetSim();
+            break;
+        case 's':
+            toggleSlow();
+            break;
+        case 't':
+            stepSim();
+            break;
+        case 'u':
+            uploadCode();
+            break;
+    }
+});
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+initWelcomeParticles();
+
+window.addEventListener('load', () => {
+    if (typeof THREE === 'undefined') {
+        document.getElementById('error-msg').style.display = 'block';
+        return;
+    }
+    initThree();
+});
+</script>
+</body>
+</html>
